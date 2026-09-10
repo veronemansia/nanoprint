@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cahier des charges — Logiciel de Gestion d'Imprimerie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Saira:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F5EF;
+    --paper-2:#EFEBE1;
+    --ink:#1B1B1A;
+    --slate:#5C5F63;
+    --line:#DCD5C4;
+    --red:#C8102E;
+    --cyan:#00AEEF;
+    --magenta:#EC008C;
+    --yellow:#F2C300;
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Saira', sans-serif;
+    font-weight:400;
+    line-height:1.5;
+  }
+  ::selection{ background:var(--yellow); color:var(--ink); }
+
+  /* --- Registration mark (signature element) --- */
+  .reg{
+    display:inline-block;
+    width:14px; height:14px;
+    position:relative;
+    flex-shrink:0;
+  }
+  .reg::before, .reg::after{
+    content:"";
+    position:absolute;
+    background:var(--red);
+  }
+  .reg::before{ top:50%; left:0; width:100%; height:2px; transform:translateY(-1px);}
+  .reg::after{ left:50%; top:0; height:100%; width:2px; transform:translateX(-1px);}
+  .reg-circle{
+    position:absolute; inset:1px;
+    border:2px solid var(--red);
+    border-radius:50%;
+  }
+
+  /* --- CMYK bar, used as a recurring signature strip --- */
+  .cmyk-bar{ display:flex; height:6px; width:100%; }
+  .cmyk-bar span{ flex:1; }
+  .cmyk-bar .c{ background:var(--cyan); }
+  .cmyk-bar .m{ background:var(--magenta); }
+  .cmyk-bar .y{ background:var(--yellow); }
+  .cmyk-bar .k{ background:var(--ink); }
+
+  /* ============ HEADER ============ */
+  header{
+    padding:76px 8vw 56px;
+    border-bottom:1px solid var(--line);
+    position:relative;
+    overflow:hidden;
+  }
+  .eyebrow{
+    font-family:'Saira Condensed', sans-serif;
+    font-weight:700;
+    letter-spacing:0.3em;
+    text-transform:uppercase;
+    font-size:12.5px;
+    color:var(--red);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:22px;
+  }
+  .eyebrow .rule{ width:40px; height:1px; background:var(--red); }
+  h1{
+    font-family:'Saira Condensed', sans-serif;
+    font-weight:800;
+    font-size:clamp(38px, 6vw, 74px);
+    line-height:0.98;
+    letter-spacing:-0.01em;
+    max-width:18ch;
+  }
+  header p.lead{
+    margin-top:26px;
+    max-width:62ch;
+    font-size:18px;
+    color:var(--slate);
+    font-weight:400;
+  }
+  .flow-note{
+    margin-top:18px;
+    font-size:13px;
+    color:var(--slate);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .flow-note b{ color:var(--ink); }
+  .job-ticket{
+    margin-top:34px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:0;
+    border:1px solid var(--ink);
+    max-width:640px;
+  }
+  .job-ticket div{
+    padding:14px 20px;
+    border-right:1px solid var(--ink);
+    flex:1;
+    min-width:140px;
+  }
+  .job-ticket div:last-child{ border-right:none; }
+  .job-ticket .k{
+    font-family:'Saira Condensed', sans-serif;
+    font-size:10.5px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--slate);
+    display:block;
+    margin-bottom:4px;
+  }
+  .job-ticket .v{ font-weight:600; font-size:15px; }
+
+  /* ============ LAYOUT ============ */
+  .layout{
+    display:flex;
+    align-items:flex-start;
+  }
+  nav.toc{
+    width:290px;
+    flex-shrink:0;
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:40px 26px 40px 8vw;
+    border-right:1px solid var(--line);
+  }
+  nav.toc h2{
+    font-family:'Saira Condensed', sans-serif;
+    font-size:11px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--slate);
+    margin-bottom:6px;
+  }
+  nav.toc .toc-sub{
+    font-size:11.5px;
+    color:var(--slate);
+    margin-bottom:18px;
+  }
+  nav.toc ol{
+    list-style:none;
+    counter-reset:mod;
+    position:relative;
+  }
+  nav.toc ol::before{
+    content:"";
+    position:absolute;
+    left:5px; top:6px; bottom:6px;
+    width:1px;
+    background:var(--line);
+  }
+  nav.toc li{ counter-increment:mod; }
+  nav.toc a{
+    counter-reset:mod;
+    display:flex;
+    gap:10px;
+    align-items:baseline;
+    text-decoration:none;
+    color:var(--ink);
+    font-size:13.5px;
+    font-weight:500;
+    padding:8px 0 8px 4px;
+    transition:color .15s ease, padding-left .15s ease;
+  }
+  nav.toc a:hover{ color:var(--red); padding-left:8px; }
+  nav.toc a::before{
+    content:counter(mod, decimal-leading-zero);
+    font-family:'Saira Condensed', sans-serif;
+    font-weight:700;
+    color:var(--red);
+    font-size:12px;
+    background:var(--paper);
+    z-index:1;
+  }
+  nav.toc .anchor-first a::before, nav.toc .anchor-last a::before{
+    color:var(--ink);
+  }
+
+  main{ flex:1; min-width:0; padding:40px 8vw 120px 56px; }
+
+  /* ============ MODULE SECTION ============ */
+  section.module{
+    counter-increment:module;
+    padding:52px 0;
+    border-bottom:1px solid var(--line);
+    scroll-margin-top:24px;
+  }
+  section.module:first-child{ padding-top:8px; }
+  section.module.pivot{
+    background:var(--paper-2);
+    margin:0 -8vw 0 -56px;
+    padding:52px 8vw 52px 56px;
+  }
+  .module-head{
+    display:flex;
+    align-items:flex-end;
+    gap:22px;
+    margin-bottom:10px;
+  }
+  .module-num{
+    font-family:'Saira Condensed', sans-serif;
+    font-weight:800;
+    font-size:56px;
+    line-height:0.8;
+    -webkit-text-stroke:1.5px var(--ink);
+    color:transparent;
+  }
+  .module-num.filled{ -webkit-text-stroke:1.5px var(--red); color:var(--red); }
+  .module-title-wrap h3{
+    font-family:'Saira Condensed', sans-serif;
+    font-weight:700;
+    font-size:clamp(24px, 2.6vw, 32px);
+    letter-spacing:-0.01em;
+  }
+  .stage-tag{
+    display:inline-block;
+    font-family:'Saira Condensed', sans-serif;
+    font-size:10.5px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:#fff;
+    background:var(--ink);
+    padding:3px 9px;
+    margin-bottom:10px;
+  }
+  .module-desc{
+    max-width:78ch;
+    color:var(--slate);
+    font-size:15.5px;
+    margin:14px 0 30px;
+    border-left:3px solid var(--red);
+    padding-left:16px;
+  }
+
+  .features{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));
+    gap:14px;
+  }
+  .feature{
+    background:var(--card);
+    border:1px solid var(--line);
+    padding:20px 20px 22px;
+    display:flex;
+    gap:14px;
+  }
+  .feature .reg{ margin-top:4px; }
+  .feature h4{
+    font-size:15.5px;
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .feature p{
+    font-size:13.8px;
+    color:var(--slate);
+    line-height:1.55;
+  }
+
+  /* ============ FOOTER ============ */
+  footer{
+    padding:50px 8vw 60px 56px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+  footer p{ font-size:13px; color:var(--slate); }
+  footer .mark{
+    display:flex; align-items:center; gap:10px;
+    font-family:'Saira Condensed', sans-serif;
+    font-weight:700;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    font-size:12px;
+  }
+
+  @media (max-width: 900px){
+    nav.toc{ display:none; }
+    main{ padding:30px 6vw 100px; }
+    section.module.pivot{ margin:0 -6vw; padding:52px 6vw; }
+    footer{ padding:40px 6vw 50px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cmyk-bar"><span class="c"></span><span class="m"></span><span class="y"></span><span class="k"></span></div>
+
+<header>
+  <div class="eyebrow"><span class="rule"></span>Spécification fonctionnelle — Logiciel Métier</div>
+  <h1>Gestion d'Imprimerie</h1>
+  <p class="lead">Cartographie complète des modules et fonctionnalités d'un logiciel de gestion pour imprimerie, organisée dans l'ordre réel d'utilisation : du paramétrage initial jusqu'au reporting final.</p>
+  <p class="flow-note">Ordre de lecture : <b>01 Configuration</b> → <b>...</b> → <b>17 Reporting</b></p>
+
+  <div class="job-ticket">
+    <div><span class="k">Réf. document</span><span class="v">IMP-2026-SPEC-02</span></div>
+    <div><span class="k">Modules couverts</span><span class="v">17</span></div>
+    <div><span class="k">Fonctionnalités</span><span class="v">80+</span></div>
+    <div><span class="k">Statut</span><span class="v">Bon à tirer</span></div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <h2>Sommaire des modules</h2>
+    <p class="toc-sub">Dans l'ordre du flux de travail</p>
+    <ol>
+      <li class="anchor-first"><a href="#m1">Configuration &amp; Paramétrage</a></li>
+      <li><a href="#m2">Utilisateurs &amp; Sécurité</a></li>
+      <li><a href="#m3">Gestion des Clients</a></li>
+      <li><a href="#m4">Devis &amp; Commandes</a></li>
+      <li><a href="#m5">Prépresse &amp; Fichiers</a></li>
+      <li><a href="#m6">Planification (Ordonnancement)</a></li>
+      <li><a href="#m7">Achats &amp; Fournisseurs</a></li>
+      <li><a href="#m8">Stocks &amp; Consommables</a></li>
+      <li><a href="#m9">Atelier &amp; Production</a></li>
+      <li><a href="#m10">Contrôle Qualité</a></li>
+      <li><a href="#m11">Machines &amp; Maintenance</a></li>
+      <li><a href="#m12">Livraison &amp; Expédition</a></li>
+      <li><a href="#m13">Facturation &amp; Comptabilité</a></li>
+      <li><a href="#m14">Ressources Humaines</a></li>
+      <li><a href="#m15">Communication &amp; Notifications</a></li>
+      <li><a href="#m16">Marketing &amp; Fidélisation</a></li>
+      <li class="anchor-last"><a href="#m17">Reporting &amp; Tableaux de bord</a></li>
+    </ol>
+  </nav>
+
+  <main style="counter-reset:module;">
+
+    <section class="module pivot" id="m1">
+      <div class="module-head"><span class="module-num filled">01</span><div class="module-title-wrap"><span class="stage-tag">Étape 0 — Mise en place</span><h3>Configuration &amp; Paramétrage</h3></div></div>
+      <p class="module-desc">Pose les fondations du logiciel avant toute utilisation : catalogue, tarifs, modèles de documents et paramètres généraux de l'entreprise.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Catalogue produits et prestations</h4><p>Définition des produits proposés (cartes de visite, flyers, catalogues...) avec leurs caractéristiques techniques par défaut.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Grilles tarifaires et règles de prix</h4><p>Paramétrage des prix de base, des dégressifs de quantité et des suppléments selon les options de finition.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Paramétrage des machines et postes</h4><p>Enregistrement des capacités, cadences et coûts horaires de chaque équipement pour alimenter les calculs de production.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Modèles de documents</h4><p>Création des trames de devis, bons de commande, factures et bons de livraison aux couleurs de l'entreprise.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Paramètres généraux</h4><p>Configuration de la devise, des taxes applicables, des unités de mesure et des jours ouvrés de l'atelier.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m2">
+      <div class="module-head"><span class="module-num">02</span><div class="module-title-wrap"><h3>Utilisateurs &amp; Sécurité</h3></div></div>
+      <p class="module-desc">Encadre l'accès à l'application selon le rôle de chaque utilisateur, avant l'ouverture aux équipes.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion des rôles et permissions</h4><p>Attribution de droits d'accès différenciés selon le poste : commercial, opérateur, comptable ou administrateur.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Journal des actions (audit trail)</h4><p>Traçabilité de toutes les modifications importantes effectuées dans le logiciel, avec identification de l'auteur.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Sauvegarde et sécurité des données</h4><p>Sauvegarde automatique et régulière des données de l'entreprise avec possibilité de restauration en cas d'incident.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m3">
+      <div class="module-head"><span class="module-num">03</span><div class="module-title-wrap"><h3>Gestion des Clients (CRM)</h3></div></div>
+      <p class="module-desc">Centralise toutes les informations relatives aux clients et à l'historique de leur relation avec l'imprimerie.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Fiche client détaillée</h4><p>Coordonnées, contacts multiples, conditions de paiement, remises négociées et notes internes rattachées à chaque compte.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Historique des commandes</h4><p>Liste chronologique de tous les travaux passés par le client, avec accès direct aux devis, factures et fichiers associés.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Segmentation client</h4><p>Classement des clients par secteur d'activité, volume d'affaires ou fréquence de commande pour cibler les actions commerciales.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion des contacts multiples</h4><p>Association de plusieurs interlocuteurs à une même entreprise cliente (facturation, validation BAT, livraison).</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Espace client en ligne</h4><p>Portail permettant au client de suivre l'avancement de sa commande, valider un bon à tirer et régler ses factures à distance.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m4">
+      <div class="module-head"><span class="module-num">04</span><div class="module-title-wrap"><h3>Devis &amp; Commandes</h3></div></div>
+      <p class="module-desc">Encadre la chaîne commerciale, du chiffrage initial jusqu'à la transformation en commande ferme.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Calculateur de prix automatique</h4><p>Estimation du coût d'un travail selon le format, le grammage, la quantité, le nombre de couleurs et les finitions choisies.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Génération de devis multi-options</h4><p>Création de plusieurs propositions tarifaires (quantités ou supports différents) au sein d'un même document envoyé au client.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Conversion devis vers commande</h4><p>Transformation en un clic d'un devis accepté en bon de commande, sans ressaisie des informations.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi des statuts de commande</h4><p>Visualisation en temps réel de l'état de chaque commande : en attente, en production, en finition, expédiée.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion des avenants</h4><p>Prise en compte des modifications de dernière minute sur une commande déjà validée, avec recalcul automatique du prix.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Signature électronique du BAT</h4><p>Validation du bon à tirer directement en ligne par le client, avec horodatage et valeur contractuelle.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m5">
+      <div class="module-head"><span class="module-num">05</span><div class="module-title-wrap"><h3>Prépresse &amp; Fichiers</h3></div></div>
+      <p class="module-desc">Prépare et contrôle les fichiers graphiques avant leur passage en machine, pour garantir un résultat conforme.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Réception et stockage des fichiers clients</h4><p>Dépôt sécurisé des fichiers PDF, AI ou InDesign, avec versionnage automatique en cas de renvoi corrigé.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Contrôle technique automatisé (preflight)</h4><p>Vérification de la résolution des images, du mode colorimétrique, des fonds perdus et de la présence des polices.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Imposition et mise en page machine</h4><p>Positionnement automatique des pages sur la feuille d'impression selon le format de la presse et le mode de façonnage.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Épreuvage numérique</h4><p>Génération d'une épreuve à l'écran ou d'un tirage calibré, envoyée au client pour validation avant lancement en production.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion des profils colorimétriques</h4><p>Application de profils ICC adaptés à chaque support et à chaque machine pour assurer la fidélité des couleurs.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m6">
+      <div class="module-head"><span class="module-num">06</span><div class="module-title-wrap"><h3>Planification (Ordonnancement)</h3></div></div>
+      <p class="module-desc">Organise l'enchaînement des tâches de production pour respecter les délais tout en optimisant les ressources.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Planning visuel des machines</h4><p>Vue calendrier ou Gantt affichant la charge de chaque machine et les créneaux disponibles pour de nouvelles commandes.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Ordonnancement automatique des travaux</h4><p>Regroupement des travaux compatibles (même papier, mêmes couleurs) pour limiter les changements de réglage machine.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion des priorités et urgences</h4><p>Réorganisation rapide de la file de production en cas de commande urgente, avec alerte sur les délais impactés.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Estimation des délais de livraison</h4><p>Calcul automatique de la date de sortie prévisionnelle en fonction de la charge actuelle de l'atelier.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Alertes de retard</h4><p>Notification automatique dès qu'une étape de production dépasse le temps alloué, pour anticiper un retard client.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m7">
+      <div class="module-head"><span class="module-num">07</span><div class="module-title-wrap"><h3>Achats &amp; Fournisseurs</h3></div></div>
+      <p class="module-desc">Gère les relations avec les fournisseurs de matières premières et de services externes, en amont de la production.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Fiches fournisseurs</h4><p>Coordonnées, catalogue de produits, tarifs négociés et délais de livraison habituels par fournisseur.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Génération de bons de commande fournisseur</h4><p>Création automatique d'une commande d'achat depuis une alerte de stock ou un besoin spécifique de production.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi des livraisons entrantes</h4><p>Réception et pointage des marchandises livrées par rapport au bon de commande initial.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Comparateur de prix fournisseurs</h4><p>Mise en concurrence de plusieurs fournisseurs pour un même article afin d'optimiser le coût d'achat.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m8">
+      <div class="module-head"><span class="module-num">08</span><div class="module-title-wrap"><h3>Stocks &amp; Consommables</h3></div></div>
+      <p class="module-desc">Contrôle les quantités disponibles de matières premières pour éviter toute rupture pendant la production.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi des stocks de papier</h4><p>Quantités disponibles par type, grammage, format et fournisseur, avec valorisation financière du stock.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi des encres et consommables</h4><p>Gestion des niveaux d'encre, de plaques offset, de vernis et autres produits nécessaires à l'impression.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Seuils d'alerte de réapprovisionnement</h4><p>Notification automatique lorsqu'un article atteint son stock minimum pour déclencher une commande fournisseur.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Réservation de matière par commande</h4><p>Blocage automatique de la quantité de papier nécessaire dès la validation d'une commande, pour éviter les conflits d'usage.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Inventaire et régularisation</h4><p>Comptage périodique du stock physique et ajustement des écarts constatés dans le système.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m9">
+      <div class="module-head"><span class="module-num">09</span><div class="module-title-wrap"><h3>Atelier &amp; Production</h3></div></div>
+      <p class="module-desc">Suit l'exécution physique des travaux, poste par poste, de l'impression jusqu'au façonnage final.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi de production en temps réel</h4><p>Enregistrement de l'avancement de chaque commande à chaque poste : impression, découpe, pliage, reliure.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Fiche de travail (bon de fabrication)</h4><p>Document opérateur détaillant les spécifications techniques, les quantités et les consignes de façonnage pour chaque job.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Traçabilité par code-barres ou QR code</h4><p>Scan de chaque lot à chaque étape pour connaître sa localisation et son statut exact dans l'atelier.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion des rebuts et de la casse</h4><p>Enregistrement des feuilles perdues ou défectueuses pour ajuster les quantités à produire et analyser les causes.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi du façonnage et de la finition</h4><p>Gestion des étapes de pelliculage, vernis, découpe à la forme, dorure, reliure ou massicotage jusqu'au produit fini.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m10">
+      <div class="module-head"><span class="module-num">10</span><div class="module-title-wrap"><h3>Contrôle Qualité</h3></div></div>
+      <p class="module-desc">Vérifie que chaque travail produit respecte les exigences techniques et esthétiques attendues, avant expédition.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Fiche de contrôle qualité par lot</h4><p>Vérification du calage couleur, de l'aplomb du façonnage et de la conformité au bon à tirer avant expédition.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion des non-conformités</h4><p>Enregistrement d'un défaut détecté, avec déclenchement d'une action corrective ou d'une reprise de production.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Historique qualité par machine</h4><p>Suivi statistique des incidents qualité par équipement pour identifier les besoins de maintenance ou de réglage.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m11">
+      <div class="module-head"><span class="module-num">11</span><div class="module-title-wrap"><h3>Machines &amp; Maintenance</h3></div></div>
+      <p class="module-desc">Garantit la disponibilité et la longévité du parc machine grâce à un entretien planifié, en continu.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Fiche technique de chaque machine</h4><p>Caractéristiques, capacité de production, historique d'utilisation et documentation technique associée.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Maintenance préventive planifiée</h4><p>Calendrier d'entretien basé sur les heures d'utilisation ou le nombre de feuilles imprimées.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Signalement de pannes</h4><p>Déclaration rapide d'un incident machine par l'opérateur, avec suivi de l'intervention technique jusqu'à résolution.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi du taux d'utilisation des machines</h4><p>Calcul du temps machine réellement productif par rapport au temps disponible, pour repérer les goulots d'étranglement.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m12">
+      <div class="module-head"><span class="module-num">12</span><div class="module-title-wrap"><h3>Livraison &amp; Expédition</h3></div></div>
+      <p class="module-desc">Organise la sortie des produits finis vers le client, en interne ou via un transporteur.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Génération des bons de livraison</h4><p>Édition automatique du bordereau de livraison avec le détail des quantités et références expédiées.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Planification des tournées</h4><p>Organisation des livraisons par zone géographique ou par transporteur pour optimiser les trajets.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi de colis en ligne</h4><p>Partage d'un lien de suivi au client dès la prise en charge du colis par le transporteur.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion du retrait en atelier</h4><p>Notification automatique au client lorsque sa commande est prête à être récupérée sur place.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m13">
+      <div class="module-head"><span class="module-num">13</span><div class="module-title-wrap"><h3>Facturation &amp; Comptabilité</h3></div></div>
+      <p class="module-desc">Assure la gestion financière des commandes, depuis la facturation jusqu'au suivi des encaissements.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Facturation automatique</h4><p>Génération de la facture directement depuis la commande livrée, sans ressaisie des lignes ni des montants.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion des acomptes</h4><p>Suivi des demandes et encaissements d'acompte avant lancement de la production sur les commandes concernées.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi des règlements et relances</h4><p>Visualisation des factures en attente de paiement et envoi automatique de relances aux échéances dépassées.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Export comptable</h4><p>Transfert des écritures de facturation vers le logiciel de comptabilité de l'entreprise, au format standard.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Calcul de la rentabilité par job</h4><p>Comparaison du prix vendu au coût réel de production (matière, temps machine, main-d'œuvre) pour chaque commande.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m14">
+      <div class="module-head"><span class="module-num">14</span><div class="module-title-wrap"><h3>Ressources Humaines</h3></div></div>
+      <p class="module-desc">Gère le personnel de l'imprimerie et son temps de travail sur les différents postes.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Gestion des plannings d'équipe</h4><p>Répartition des opérateurs sur les postes et les horaires selon la charge de production prévue.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Pointage du temps de travail</h4><p>Enregistrement du temps passé par chaque employé sur chaque commande ou poste de production.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Suivi des compétences et habilitations</h4><p>Répertoire des qualifications et formations de chaque opérateur pour affecter les bonnes personnes aux bonnes machines.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m15">
+      <div class="module-head"><span class="module-num">15</span><div class="module-title-wrap"><h3>Communication &amp; Notifications</h3></div></div>
+      <p class="module-desc">Maintient le client et les équipes informés à chaque étape clé du cycle de vie d'une commande.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Notifications automatiques par e-mail ou SMS</h4><p>Envoi d'alertes au client lors des étapes importantes : devis envoyé, BAT à valider, commande expédiée.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Messagerie interne</h4><p>Échange direct entre les équipes commerciales et l'atelier pour clarifier une instruction sur un dossier en cours.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Modèles de communication personnalisables</h4><p>Création de modèles d'e-mails et de documents aux couleurs de l'entreprise pour toutes les communications automatiques.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module" id="m16">
+      <div class="module-head"><span class="module-num">16</span><div class="module-title-wrap"><h3>Marketing &amp; Fidélisation</h3></div></div>
+      <p class="module-desc">Encourage la fidélité des clients existants et soutient les actions de développement commercial.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Programme de fidélité</h4><p>Attribution d'avantages ou de remises aux clients réguliers selon leur volume d'achat cumulé.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Campagnes d'e-mailing ciblées</h4><p>Envoi d'offres ou d'informations à des segments de clients spécifiques, directement depuis les données du CRM.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Relance des clients inactifs</h4><p>Identification automatique des clients n'ayant pas commandé depuis une période définie, pour déclencher une relance commerciale.</p></div></div>
+      </div>
+    </section>
+
+    <section class="module pivot" id="m17">
+      <div class="module-head"><span class="module-num filled">17</span><div class="module-title-wrap"><span class="stage-tag">Étape finale — Analyse</span><h3>Reporting &amp; Tableaux de bord</h3></div></div>
+      <p class="module-desc">Restitue une vision synthétique de l'activité, en bout de chaîne, pour guider les décisions de gestion.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Tableau de bord de l'activité</h4><p>Vue d'ensemble du chiffre d'affaires, du nombre de commandes en cours et du taux d'occupation des machines.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Rapports de rentabilité</h4><p>Analyse des marges par client, par type de produit ou par période pour orienter la stratégie commerciale.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Statistiques de production</h4><p>Indicateurs de volumes imprimés, de taux de rebut et de respect des délais sur une période donnée.</p></div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div><h4>Export de rapports personnalisés</h4><p>Génération de rapports au format PDF ou tableur selon les indicateurs choisis par l'utilisateur.</p></div></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="cmyk-bar"><span class="c"></span><span class="m"></span><span class="y"></span><span class="k"></span></div>
+<footer>
+  <p>Document de référence — ordre aligné sur le flux réel : configuration → exploitation → reporting.</p>
+  <div class="mark"><span class="reg" style="width:12px;height:12px;"><span class="reg-circle"></span></span> Cahier des charges imprimerie</div>
+</footer>
+
+</body>
+</html>

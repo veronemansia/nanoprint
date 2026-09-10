@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guide d’utilisation — NanoPrint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Saira:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F5EF;
+    --paper-2:#EFEBE1;
+    --ink:#1B1B1A;
+    --slate:#5C5F63;
+    --line:#DCD5C4;
+    --red:#C8102E;
+    --cyan:#00AEEF;
+    --magenta:#EC008C;
+    --yellow:#F2C300;
+    --card:#FFFFFF;
+    --green:#1F7A58;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--paper);color:var(--ink);font-family:'Saira',sans-serif;font-weight:400;line-height:1.55;}
+  ::selection{background:var(--yellow);color:var(--ink);}
+  .reg{display:inline-block;width:14px;height:14px;position:relative;flex-shrink:0;}
+  .reg::before,.reg::after{content:"";position:absolute;background:var(--red);}
+  .reg::before{top:50%;left:0;width:100%;height:2px;transform:translateY(-1px);}
+  .reg::after{left:50%;top:0;height:100%;width:2px;transform:translateX(-1px);}
+  .reg-circle{position:absolute;inset:1px;border:2px solid var(--red);border-radius:50%;}
+  .cmyk-bar{display:flex;height:6px;width:100%;}
+  .cmyk-bar span{flex:1;}
+  .cmyk-bar .c{background:var(--cyan);}
+  .cmyk-bar .m{background:var(--magenta);}
+  .cmyk-bar .y{background:var(--yellow);}
+  .cmyk-bar .k{background:var(--ink);}
+
+  header{position:relative;padding:76px 8vw 56px;border-bottom:1px solid var(--line);}
+  .guide-lang{position:absolute;top:24px;right:8vw;display:flex;align-items:center;gap:8px;}
+  .guide-lang label{font-family:'Saira Condensed',sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate);}
+  .guide-lang select{height:36px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:#fff;font-family:'Saira',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+  @media (max-width:980px){.guide-lang{right:6vw;}}
+  .eyebrow{font-family:'Saira Condensed',sans-serif;font-weight:700;letter-spacing:.3em;text-transform:uppercase;font-size:12.5px;color:var(--red);display:flex;align-items:center;gap:10px;margin-bottom:22px;}
+  .eyebrow .rule{width:40px;height:1px;background:var(--red);}
+  h1{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:clamp(38px,6vw,74px);line-height:.98;letter-spacing:-.01em;max-width:16ch;}
+  header p.lead{margin-top:26px;max-width:68ch;font-size:18px;color:var(--slate);}
+  .flow-note{margin-top:18px;font-size:13px;color:var(--slate);}
+  .flow-note b{color:var(--ink);}
+  .job-ticket{margin-top:34px;display:flex;flex-wrap:wrap;border:1px solid var(--ink);max-width:720px;}
+  .job-ticket div{padding:14px 20px;border-right:1px solid var(--ink);flex:1;min-width:150px;}
+  .job-ticket div:last-child{border-right:none;}
+  .job-ticket .k{font-family:'Saira Condensed',sans-serif;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px;}
+  .job-ticket .v{font-weight:600;font-size:15px;}
+
+  .layout{display:flex;align-items:flex-start;}
+  nav.toc{width:300px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;padding:40px 22px 40px 8vw;border-right:1px solid var(--line);}
+  nav.toc h2{font-family:'Saira Condensed',sans-serif;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--slate);margin-bottom:6px;}
+  nav.toc .toc-sub{font-size:11.5px;color:var(--slate);margin-bottom:18px;}
+  nav.toc ol{list-style:none;}
+  nav.toc a{display:block;text-decoration:none;color:var(--ink);font-size:13px;font-weight:500;padding:7px 0;transition:color .15s;}
+  nav.toc a:hover{color:var(--red);}
+  nav.toc .toc-mod{font-family:'Saira Condensed',sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--red);padding-top:14px;}
+
+  main{flex:1;min-width:0;padding:40px 8vw 120px 48px;}
+  section.block{padding:48px 0;border-bottom:1px solid var(--line);scroll-margin-top:24px;}
+  section.block.pivot{background:var(--paper-2);margin:0 -8vw 0 -48px;padding:48px 8vw 48px 48px;}
+  .module-head{display:flex;align-items:flex-end;gap:22px;margin-bottom:12px;}
+  .module-num{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:56px;line-height:.8;-webkit-text-stroke:1.5px var(--ink);color:transparent;}
+  .module-num.filled{-webkit-text-stroke:1.5px var(--red);color:var(--red);}
+  .stage-tag{display:inline-block;font-family:'Saira Condensed',sans-serif;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#fff;background:var(--ink);padding:3px 9px;margin-bottom:10px;}
+  h2{font-family:'Saira Condensed',sans-serif;font-weight:700;font-size:clamp(24px,2.6vw,32px);letter-spacing:-.01em;}
+  h3{font-size:16.5px;font-weight:600;margin-bottom:8px;}
+  .module-desc{max-width:78ch;color:var(--slate);font-size:15.5px;margin:14px 0 28px;border-left:3px solid var(--red);padding-left:16px;}
+  p,li{font-size:14.5px;}
+  ol,ul{padding-left:18px;margin:8px 0 0;}
+  li+li{margin-top:4px;}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:.92em;background:#fff;border:1px solid var(--line);padding:1px 6px;border-radius:4px;}
+  pre{margin:14px 0;padding:14px 16px;background:#1B1B1A;color:#F7F5EF;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.6;}
+  pre code{background:none;border:0;color:inherit;padding:0;}
+
+  .steps{display:grid;gap:10px;margin-top:12px;}
+  .step{background:var(--card);border:1px solid var(--line);padding:16px 18px;}
+  .step b{display:block;font-family:'Saira Condensed',sans-serif;letter-spacing:.08em;text-transform:uppercase;font-size:11px;color:var(--red);margin-bottom:6px;}
+
+  table{width:100%;border-collapse:collapse;margin-top:14px;background:var(--card);}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;font-size:13.5px;vertical-align:top;}
+  th{font-family:'Saira Condensed',sans-serif;letter-spacing:.08em;text-transform:uppercase;font-size:11px;background:var(--paper-2);}
+
+  .features{display:grid;gap:14px;}
+  .feature{background:var(--card);border:1px solid var(--line);padding:22px 22px 24px;display:flex;gap:14px;}
+  .feature .reg{margin-top:5px;}
+  .feature h4{font-size:16.5px;font-weight:600;margin-bottom:10px;}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px;}
+  .pair article{border-left:3px solid var(--cyan);padding-left:12px;}
+  .pair article.how{border-left-color:var(--magenta);}
+  .pair h5{font-family:'Saira Condensed',sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate);margin-bottom:6px;}
+  .pair p,.pair li{font-size:13.8px;color:var(--slate);}
+  .seg-rules{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;}
+  .seg-rules article{border-left:3px solid var(--ink);padding-left:12px;}
+  .seg-rules h5{font-family:'Saira Condensed',sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate);margin-bottom:6px;}
+  .seg-rules p,.seg-rules li{font-size:13.8px;color:var(--slate);}
+  .seg-rules ul{margin:8px 0 0;padding-left:18px;}
+  @media (max-width:900px){.seg-rules{grid-template-columns:1fr;}}
+  .tip{margin-top:12px;padding:10px 12px;background:#FFF8D6;border:1px solid #E6D48A;font-size:13.2px;}
+  .tip b{color:var(--ink);}
+  .warn{margin-top:12px;padding:10px 12px;background:#FDE8EE;border:1px solid #F0C3D0;font-size:13.2px;}
+
+  .path{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 8px;}
+  .path span{font-size:12px;padding:5px 9px;border:1px solid var(--ink);background:#fff;}
+
+  footer{padding:50px 8vw 60px 48px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;}
+  footer p{font-size:13px;color:var(--slate);}
+  footer .mark{display:flex;align-items:center;gap:10px;font-family:'Saira Condensed',sans-serif;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:12px;}
+
+  @media (max-width:980px){
+    nav.toc{display:none;}
+    main{padding:30px 6vw 100px;}
+    section.block.pivot{margin:0 -6vw;padding:48px 6vw;}
+    .pair{grid-template-columns:1fr;}
+    footer{padding:40px 6vw 50px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="cmyk-bar"><span class="c"></span><span class="m"></span><span class="y"></span><span class="k"></span></div>
+
+<header>
+  <div class="guide-lang">
+    <label for="guide-locale">Langue</label>
+    <select id="guide-locale" aria-label="Langue">
+      <option value="fr">Français</option>
+      <option value="en">English</option>
+      <option value="es">Español</option>
+    </select>
+  </div>
+  <div class="eyebrow"><span class="rule"></span><span data-i18n="guide.eyebrow">Manuel utilisateur — NanoPrint</span></div>
+  <h1 data-i18n="guide.title">Guide d’utilisation</h1>
+  <p class="lead" data-i18n="guide.lead">Notice complète de la plateforme d’administration d’imprimerie : à quoi sert chaque écran, comment s’en servir au quotidien, et dans quel ordre enchaîner les dossiers.</p>
+  <p class="flow-note" data-i18n-html="guide.flow">Version actuelle : données <b>mock</b> (locales, sans backend). Les gestes restent ceux d’une vraie exploitation.</p>
+  <div class="job-ticket">
+    <div><span class="k" data-i18n="guide.doc">Document</span><span class="v">IMP-2026-GUIDE-01</span></div>
+    <div><span class="k" data-i18n="guide.modules">Modules</span><span class="v">17</span></div>
+    <div><span class="k" data-i18n="guide.features">Fonctionnalités</span><span class="v">71</span></div>
+    <div><span class="k" data-i18n="guide.public">Public</span><span class="v" data-i18n="guide.audience">Équipes atelier</span></div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <h2 data-i18n="toc.title">Sommaire</h2>
+    <p class="toc-sub" data-i18n="toc.sub">Prise en main puis modules</p>
+    <ol>
+      <li><a href="#demarrage" data-i18n="toc.01">01 Démarrage</a></li>
+      <li><a href="#connexion" data-i18n="toc.02">02 Connexion &amp; rôles</a></li>
+      <li><a href="#interface" data-i18n="toc.03">03 Interface</a></li>
+      <li><a href="#gestes" data-i18n="toc.04">04 Gestes communs</a></li>
+      <li><a href="#dashboard" data-i18n="toc.05">05 Vue d’ensemble</a></li>
+      <li class="toc-mod" data-i18n="toc.biz">Modules métier</li>
+      <li><a href="#m1" data-i18n="toc.m1">01 Configuration</a></li>
+      <li><a href="#m2" data-i18n="toc.m2">02 Utilisateurs</a></li>
+      <li><a href="#m3" data-i18n="toc.m3">03 Clients</a></li>
+      <li><a href="#m4" data-i18n="toc.m4">04 Devis &amp; commandes</a></li>
+      <li><a href="#m5" data-i18n="toc.m5">05 Prépresse</a></li>
+      <li><a href="#m6" data-i18n="toc.m6">06 Planification</a></li>
+      <li><a href="#m7" data-i18n="toc.m7">07 Achats</a></li>
+      <li><a href="#m8" data-i18n="toc.m8">08 Stocks</a></li>
+      <li><a href="#m11" data-i18n="toc.m11">11 Machines</a></li>
+      <li><a href="#m12" data-i18n="toc.m12">12 Livraisons</a></li>
+      <li><a href="#m13" data-i18n="toc.m13">13 Facturation</a></li>
+      <li><a href="#m14" data-i18n="toc.m14">14 Équipe</a></li>
+      <li><a href="#m15" data-i18n="toc.m15">15 Communication</a></li>
+      <li><a href="#m17" data-i18n="toc.m17">17 Reporting</a></li>
+      <li class="toc-mod" data-i18n="toc.annex">Annexes</li>
+      <li><a href="#parcours" data-i18n="toc.path">Parcours d’un dossier</a></li>
+      <li><a href="#limites" data-i18n="toc.limits">Limites mock</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section class="block" id="demarrage">
+      <div class="module-head"><span class="module-num filled">01</span><div><span class="stage-tag">Prise en main</span><h2>Démarrage</h2></div></div>
+      <p class="module-desc">Lancer l’application en local. La première page affichée est toujours l’écran de connexion.</p>
+      <p>Dans le dossier du projet :</p>
+      <pre><code>npm run dev</code></pre>
+      <p>Ouvrez <b>http://localhost:3000</b> dans le navigateur.</p>
+      <p style="margin-top:12px;">Après un build de production (<code>npm run build</code>) :</p>
+      <pre><code>npm run start</code></pre>
+    </section>
+
+    <section class="block" id="connexion">
+      <div class="module-head"><span class="module-num">02</span><div><h2>Connexion et rôles</h2></div></div>
+      <p class="module-desc">Contrôler qui entre dans l’atelier numérique. Le rôle limite notamment la suppression (administrateur uniquement).</p>
+      <div class="steps">
+        <div class="step"><b>Étape 1</b>Saisissez une adresse e-mail valide.</div>
+        <div class="step"><b>Étape 2</b>Saisissez un mot de passe d’au moins 6 caractères.</div>
+        <div class="step"><b>Étape 3</b>Choisissez un profil de démonstration : Administrateur, Commercial, Opérateur ou Comptable.</div>
+        <div class="step"><b>Étape 4</b>Cliquez sur <b>Ouvrir NanoPrint</b>.</div>
+      </div>
+      <table>
+        <thead><tr><th>Champ</th><th>Compte de démonstration</th></tr></thead>
+        <tbody>
+          <tr><td>E-mail</td><td><code>awa.diop@nanoprint.demo</code></td></tr>
+          <tr><td>Mot de passe</td><td><code>demo2026</code></td></tr>
+          <tr><td>Profil</td><td>Administrateur</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th>Rôle</th><th>Usage typique</th></tr></thead>
+        <tbody>
+          <tr><td>Administrateur</td><td>Paramétrage, utilisateurs, suppressions, vision globale</td></tr>
+          <tr><td>Commercial</td><td>Clients, devis, commandes, facturation commerciale</td></tr>
+          <tr><td>Opérateur</td><td>Prépresse, planning, machines, stocks</td></tr>
+          <tr><td>Comptable</td><td>Factures et acomptes depuis les commandes</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:14px;">Pour quitter : menu utilisateur (initiales, haut droite) → <b>Se déconnecter</b>. La session est stockée dans ce navigateur.</p>
+    </section>
+
+    <section class="block" id="interface">
+      <div class="module-head"><span class="module-num">03</span><div><h2>Interface générale</h2></div></div>
+      <p class="module-desc">Repères visuels pour se déplacer sans se perdre entre les 14 modules.</p>
+      <table>
+        <thead><tr><th>Zone</th><th>Rôle</th></tr></thead>
+        <tbody>
+          <tr><td>Barre latérale</td><td>Accès aux modules, regroupés : Fondations, Commercial, Flux de production, Support, Pilotage</td></tr>
+          <tr><td>Vue d’ensemble</td><td>Tableau de bord du jour</td></tr>
+          <tr><td>Fil d’Ariane</td><td>Module et écran en cours</td></tr>
+          <tr><td>Recherche / Ctrl K</td><td>Focalise le champ de recherche de l’écran ouvert</td></tr>
+          <tr><td>Cloche</td><td>Alertes stock, BAT</td></tr>
+          <tr><td>Onglets sous le titre</td><td>Une fonctionnalité = un écran. Cliquez pour changer d’écran dans le même module</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;">Sur mobile, le menu s’ouvre via l’icône hamburger.</p>
+    </section>
+
+    <section class="block" id="gestes">
+      <div class="module-head"><span class="module-num">04</span><div><h2>Gestes communs</h2></div></div>
+      <p class="module-desc">Tous les écrans métier fonctionnent de la même façon. Seuls les champs, statuts et libellés changent.</p>
+      <div class="features">
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Consulter</h4>
+          <p>Tableau par défaut, ou vue fiches (icône grille). Cliquez sur la référence ou « Ouvrir la fiche » pour le détail. Les pastilles de statut : vert = OK, jaune = à surveiller, magenta = bloquant, cyan = en cours.</p>
+        </div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Rechercher et filtrer</h4>
+          <p>Tapez dans la barre de recherche, filtrez par statut, parcourez les pages. « Effacer les filtres » si la liste est vide.</p>
+        </div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Créer / Modifier / Supprimer</h4>
+          <p>Bouton principal en haut à droite pour créer (champs * obligatoires). Menu ⋯ → Modifier. Menu ⋯ → Supprimer (confirmation, administrateur uniquement).</p>
+        </div></div>
+        <div class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Exporter, imprimer, restaurer</h4>
+          <p><b>Exporter</b> génère un CSV des lignes filtrées. <b>Imprimer</b> depuis la fiche. L’icône de rotation restaure le jeu mock de <b>cet écran uniquement</b>.</p>
+        </div></div>
+      </div>
+    </section>
+
+    <section class="block pivot" id="dashboard">
+      <div class="module-head"><span class="module-num filled">05</span><div><span class="stage-tag">Pilotage</span><h2>Vue d’ensemble</h2></div></div>
+      <p class="module-desc">État de l’imprimerie en un coup d’œil : CA du mois, commandes, occupation machines, points d’attention.</p>
+      <p class="path"><span>Administration</span><span>Vue d’ensemble</span></p>
+      <ul>
+        <li>Les cartes d’indicateurs résument CA, commandes, machines et points d’attention.</li>
+        <li><b>Ouvrir le planning</b> affiche la grille machines de la semaine.</li>
+        <li><b>Nouveau devis</b> ouvre les devis multi-options.</li>
+        <li>Le graphique Activité &amp; marge, l’activité récente, les travaux prioritaires et le bloc « Cette semaine » mènent vers les modules concernés.</li>
+        <li><b>Exporter</b> prépare un rapport d’activité (simulation).</li>
+      </ul>
+    </section>
+
+    <section class="block" id="m1">
+      <div class="module-head"><span class="module-num">01</span><div><span class="stage-tag">Fondations</span><h2>Configuration &amp; Paramétrage</h2></div></div>
+      <p class="module-desc">Poser les fondations avant de vendre ou de produire : catalogue produits et matières, tarifs, machines, modèles de documents et règles d’entreprise. À utiliser à la mise en service, puis à chaque nouveau produit, matière ou équipement.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Catalogue matières</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Gérer les papiers, encres, plaques et autres matières : libellé, prix d’achat, prix de vente, stock, seuil d’alerte et unité.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Configuration → onglet Catalogue matières.</li><li>Nouvelle matière : type, libellé, prix d’achat et de vente, quantité d’alerte, unité. Le stock reste à 0 et n’est pas modifiable ici : il augmente à la validation d’un approvisionnement.</li><li>À côté de Type et Unité : + pour ajouter, crayon pour renommer, corbeille pour supprimer.</li><li>Le statut (Disponible / Stock bas / Rupture) se calcule d’après le stock et la quantité d’alerte.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Catalogue produits et prestations</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Décrire flyers, cartes, catalogues, affiches, packaging ou une prestation (conception, mise en page) avec une désignation complète.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Configuration → onglet Catalogue. Le switch Produit / Prestation sépare les deux listes.</li><li>Nouveau produit ou Nouvelle prestation : pour un produit, côtés imprimés, papier, options. Produit comme prestation peuvent recevoir des matières premières (libellé, quantité, unité), facultatives. Pour une prestation, les champs papier sont masqués.</li><li>Statut Actif = vendable ; Brouillon = en préparation ; Archivé = retiré.</li></ol></article>
+          </div>
+          <p class="tip"><b>Astuce.</b> Un produit actif sert de référence aux devis et au calculateur de prix.</p>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Grilles tarifaires et règles de prix</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Pour chaque produit ou prestation du catalogue, indiquer le montant selon la quantité (paliers dégressifs).</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Onglet Grilles tarifaires : le switch Produit / Prestation filtre la liste.</li><li>Cliquez une ligne. Saisissez « Pour 100, le montant est … ». Ajoutez d’autres paliers avec +.</li><li>Enregistrez. On ne crée pas de nouvelle règle ici.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Paramétrage des machines et postes</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Capacités, cadences et coûts horaires pour les calculs de production et de rentabilité.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Nouveau poste : atelier, cadence, coût horaire, capacité quotidienne.</li><li>À côté d’Atelier : + pour ajouter, crayon pour renommer, corbeille pour supprimer.</li><li>Maintenance ou Hors service si indisponible.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Modèles de documents</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Concevoir visuellement devis, bons de commande, factures et BL sur une feuille A4.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Nouveau modèle : saisissez le libellé, puis Concevoir.</li><li>Sur l’A4 : insérez logo, titre, texte, tableau ; déplacez les blocs. Centrez le texte via les boutons d’alignement. Un logo importé n’affiche que le motif, sans fond.</li><li>Valider génère le HTML. Un clic dans la liste affiche le design.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Taxes</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Créer, modifier ou supprimer les taxes (libellé, code, pourcentage). Les activer ou les désactiver. Seules les taxes actives s’appliquent aux devis et factures.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Configuration → onglet Taxes.</li><li>Nouvelle taxe : libellé, pourcentage, code et précision facultatifs. Activez avec l’interrupteur.</li><li>Dans le tableau, le même interrupteur active ou désactive une taxe sans ouvrir la fiche.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Paramètres généraux</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Identité de l’entreprise, logo, site web et coordonnées. Les montants s’affichent sans symbole de devise.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Renseignez la fiche entreprise puis Enregistrer.</li><li>Les taxes se gèrent dans l’onglet Taxes.</li></ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m2">
+      <div class="module-head"><span class="module-num">02</span><div><h2>Utilisateurs &amp; Sécurité</h2></div></div>
+      <p class="module-desc">Qui a le droit de faire quoi, ce qui a été modifié, et comment les données sont sauvegardées.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Gestion des rôles et permissions</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Créer les rôles (libellé + droits CRUD par module), puis les comptes utilisateurs auxquels les affecter.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Onglet Rôles : libellé, puis cochez Créer / Consulter / Modifier / Supprimer pour chaque module de la barre latérale.</li><li>Onglet Utilisateurs : nom, téléphone, adresse, mot de passe (ou génération à 4 chiffres). L’e-mail est facultatif. Affectez un rôle déjà créé.</li></ol></article>
+          </div>
+          <p class="warn">Seul un administrateur peut supprimer un compte via le menu ⋯.</p>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Journal des actions (audit trail)</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Tracer les modifications importantes : qui, quoi, quel module, quelle date.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Recherchez un auteur, un module ou un dossier.</li><li>Ouvrez la ligne pour consulter le détail. Aucune création, modification ni suppression.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Sauvegarde et sécurité des données</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Générer une sauvegarde des données locales et en garder l’historique.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Cliquez sur Sauvegarder : une ligne Réussie apparaît dans le tableau.</li><li>Consultez le volume et l’heure d’exécution.</li></ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m3">
+      <div class="module-head"><span class="module-num">03</span><div><h2>Gestion des Clients (CRM)</h2></div></div>
+      <p class="module-desc">Centraliser la relation client, de la fiche 360° aux commandes et aux contacts.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Fiche client détaillée</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Fiche 360° : particulier ou entreprise, avec remise éventuelle et note interne.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Nouveau client : choisissez Particulier ou Entreprise. Les champs du formulaire changent.</li><li>Particulier : nom, téléphone, e-mail, adresse. Entreprise : identité complète (raison sociale, NINEA, contact…).</li><li>Renseignez si besoin une remise éventuelle et une note interne.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Historique des commandes</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Consultation uniquement : voir les devis, commandes, factures et acomptes d’un particulier ou d’une entreprise. On n’ajoute rien ici.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>La liste affiche les fiches clients (particuliers et entreprises). Filtrez par statut ou recherchez un nom.</li><li>Cliquez sur le client ou « Consulter les commandes » : les commandes précédentes apparaissent (référence, travail, date, total).</li><li>Le bouton Filtres affiche le type (devis, commande, facture…) et les dates du / au.</li><li>Ouvrez une ligne pour le détail, puis revenez aux commandes.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Segmentation client</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Classer les clients pour le commercial et le marketing. Le type (secteur) se choisit à la main. L’importance et le comportement se calculent tout seuls d’après les commandes enregistrées.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Par type de client : créez, renommez ou supprimez un secteur, puis Affecter des clients (recherche à autocomplétion, un ou plusieurs, entreprises ou particuliers).</li><li>Par importance et Par comportement : consultation seule. Filtrez par Entreprise / Particulier ou par groupe.</li></ol></article>
+          </div>
+          <div class="seg-rules">
+            <article>
+              <h5>Par type de client</h5>
+              <p>Affectation manuelle à un secteur d’activité. Un client n’a qu’un secteur à la fois. Secteurs proposés (modifiables) :</p>
+              <ul>
+                <li>Entreprises</li>
+                <li>Particuliers</li>
+                <li>Écoles</li>
+                <li>Restaurants</li>
+                <li>Hôtels</li>
+                <li>Associations</li>
+                <li>Agences de communication</li>
+                <li>Administrations</li>
+              </ul>
+            </article>
+            <article>
+              <h5>Par importance (automatique)</h5>
+              <p>Un seul groupe par client, du plus fort au plus faible :</p>
+              <ul>
+                <li><b>Clients VIP</b> : total des commandes ≥ 3 000 000.</li>
+                <li><b>Gros clients</b> : total des commandes ≥ 1 000 000.</li>
+                <li><b>Clients réguliers</b> : au moins 5 commandes, sans atteindre gros ou VIP.</li>
+                <li><b>Petits clients</b> : moins de 5 commandes et total inférieur à 1 000 000.</li>
+              </ul>
+            </article>
+            <article>
+              <h5>Par comportement (automatique)</h5>
+              <p>Un seul groupe par client, d’après la date des commandes :</p>
+              <ul>
+                <li><b>Commandent souvent</b> : au moins 2 commandes sur les 90 derniers jours.</li>
+                <li><b>Commandent rarement</b> : au moins une commande sur les 6 derniers mois, sans fréquence élevée.</li>
+                <li><b>Rien commandé depuis 6 mois</b> : aucune commande dans les 183 derniers jours (y compris jamais commandé).</li>
+              </ul>
+            </article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Gestion des contacts multiples</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Une entreprise n’est pas une seule personne. Ex. ABC Communication = Jean (direction), Sarah (marketing), Paul (comptabilité), Michel (livraison). Le logiciel sait qui contacter, et pour quelle raison.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>La liste affiche les entreprises déjà créées dans Fiches clients (pas les particuliers).</li><li>Ouvrir les contacts, puis Ajouter un contact : nom, rôle, e-mail, téléphone.</li><li>Le bloc « Qui contacter » indique qui reçoit le BAT, la facture ou l’avis de livraison.</li></ol></article>
+          </div>
+          <div class="seg-rules">
+            <article>
+              <h5>Rôles</h5>
+              <ul>
+                <li><b>Direction</b> — décision, relance.</li>
+                <li><b>Responsable marketing</b> — valider un visuel.</li>
+                <li><b>Responsable comptabilité</b> — envoyer la facture.</li>
+                <li><b>Responsable livraison</b> — commander prête / BL.</li>
+                <li><b>Validation BAT</b> — bon à tirer avant impression.</li>
+              </ul>
+            </article>
+            <article>
+              <h5>Exemple</h5>
+              <p>Affiche terminée → Sarah, marketing. Facture → Paul, comptabilité. Colis prêt → Michel, livraison.</p>
+            </article>
+            <article>
+              <h5>À retenir</h5>
+              <p>On n’ajoute pas une nouvelle entreprise ici. On rattache plusieurs personnes à une société déjà en fiche.</p>
+            </article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m4">
+      <div class="module-head"><span class="module-num">04</span><div><h2>Devis &amp; Commandes</h2></div></div>
+      <p class="module-desc">Chaîne commerciale : du chiffrage à la commande ferme.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Calculateur de prix automatique</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Chiffrer un travail à partir du client et du catalogue, puis l’éditer sur une feuille A4 aux couleurs NanoPrint.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol>
+              <li>Nouveau chiffrage : recherchez le client. S’il existe, ses coordonnées et sa remise s’affichent (à appliquer ou non). Sinon, créez un particulier ou une entreprise, puis reprenez.</li>
+              <li>Étape 2 : saisissez le produit. Le calculateur lit la grille tarifaire (paliers de quantité), refuse une quantité trop basse, applique le palier correspondant, puis ajoute papier et options. La remise client s’active avec l’interrupteur.</li>
+              <li>Quand le chiffrage est complet, Imprimer / PDF ouvre directement l’A4 (Saira, barre de marque, taxes actives). Imprimez ou enregistrez en PDF, sans choisir de modèle.</li>
+            </ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Génération de devis multi-options</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Même assistant que le calculateur, pour proposer plusieurs variantes (quantités, papiers, finitions) dans un seul devis.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol>
+              <li>Nouveau devis : client (création possible), puis produits du catalogue avec grilles et remise.</li>
+              <li>Un même produit peut être repris plusieurs fois. Dupliquez une option pour n’en changer que le papier, la quantité ou les finitions.</li>
+              <li>Imprimer / PDF ouvre directement l’A4 NanoPrint. Imprimez ou enregistrez en PDF, sans choisir de modèle.</li>
+            </ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Conversion devis vers commande</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Transformer un chiffrage du calculateur en commande, sans ressaisie.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol>
+              <li>Saisissez la référence du devis (CHF-…). Le détail complet s’affiche.</li>
+              <li>Convertir en commande : le devis passe à Converti, la commande naît En attente dans le suivi.</li>
+              <li>Choisissez ensuite le modèle de document à imprimer (ou PDF), comme dans le calculateur.</li>
+            </ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Suivi des statuts de commande</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>État temps réel des commandes nées de la conversion : en attente, en production, en finition, expédiée.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol>
+              <li>Consultez une commande : même détail que le devis (client, lignes, montant) plus l’échéance.</li>
+              <li>Changez uniquement le statut. Pas de création ni de modification des autres champs.</li>
+              <li>Supprimez si besoin (administrateur). Imprimer / PDF reprend les modèles publiés.</li>
+            </ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Gestion des avenants</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Modifier une commande non terminée (produits, impression, papier, options, quantité, échéance) sans perdre l’ancienne version. Le prix se recalcule comme au calculateur. Le statut ne se change pas ici.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol>
+              <li>La liste montre les commandes en cours (pas encore expédiées). Cliquez-en une, ou saisissez sa référence (CMD-…).</li>
+              <li>Consultez le détail, puis Modifier la commande : changez produit, côtés, papier, options, quantité ou échéance, et le motif.</li>
+              <li>Enregistrer crée l’avenant et met à jour la commande. Le statut se change dans le suivi des commandes.</li>
+            </ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m5">
+      <div class="module-head"><span class="module-num">05</span><div><h2>Prépresse &amp; Fichiers</h2></div></div>
+      <p class="module-desc">Recevoir et stocker les fichiers clients rattachés aux commandes converties.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Réception et stockage des fichiers clients</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Déposer un ou plusieurs PDF, AI ou InDesign sur une commande, remplacer une version corrigée, ou supprimer un fichier.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol>
+              <li>Choisissez une commande (liste ou référence CMD-…). Le détail complet s’affiche.</li>
+              <li>Déposer des fichiers : un ou plusieurs à la fois. Un fichier du même nom incrémente la version.</li>
+              <li>Remplacer dépose la version corrigée. Supprimer retire le fichier du dossier.</li>
+            </ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m6">
+      <div class="module-head"><span class="module-num">06</span><div><h2>Planification (Ordonnancement)</h2></div></div>
+      <p class="module-desc">Voir ce qui est prévu sur chaque machine, et quand.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Planning visuel des machines</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Voir d’un coup d’œil quelle machine est occupée, quand elle est libre, et quelle commande passe ensuite.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol>
+              <li>La grille montre la semaine : une ligne par machine, un jour par colonne (lundi à samedi).</li>
+              <li>Chaque case affiche la commande (CMD-…) et l’horaire (08h → 11h). Libre = créneau disponible.</li>
+              <li>Cliquez une case libre pour placer une commande, ou une commande pour la déplacer / la retirer.</li>
+            </ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m7">
+      <div class="module-head"><span class="module-num">07</span><div><h2>Achats &amp; Fournisseurs</h2></div></div>
+      <p class="module-desc">Acheter papier, encres et services au bon prix, puis réceptionner.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Fiches fournisseurs</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Fiche simple : nom complet, téléphone, adresse, e-mail. Historique des achats passés auprès du fournisseur.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Nouveau fournisseur : nom, téléphone, adresse, e-mail.</li><li>Consulter, modifier ou supprimer depuis le menu. Historique des achats : approvisionnements validés et réceptions.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Approvisionnement</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Commander des matières auprès d’un fournisseur. Le prix d’achat vient du catalogue et n’est pas modifiable. La validation incrémente le stock et édite le bon de livraison.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>À gauche, recherchez le fournisseur. À droite, recherchez la matière : le stock s’affiche dans la liste, puis la ligne s’ajoute avec PA, PV et quantité.</li><li>Saisissez la quantité : le total de ligne et le total général se recalculent. Les prix restent figés.</li><li>Valider : le bon de livraison s’affiche, le stock matières augmente.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Historique d’approvisionnement</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Retrouver les approvisionnements par fournisseur : total, date et nombre d’appros. Le détail affiche les matières. Suppression possible dans les 48 heures.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>La liste montre le fournisseur, le total, la dernière date et le nombre d’appros.</li><li>Détails : les approvisionnements effectués, avec les lignes et le bon de livraison.</li><li>Supprimer uniquement un approvisionnement de moins de 48 h : le stock est alors recalé.</li></ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m8">
+      <div class="module-head"><span class="module-num">08</span><div><h2>Stocks &amp; Consommables</h2></div></div>
+      <p class="module-desc">Ne jamais lancer un job sans matière disponible.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Suivi stock</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Voir le stock des produits finis et des matières premières. Retirer une quantité (cassé, perte, calage…).</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Basculez Produits finis / Matière première.</li><li>Retirer : quantité (sans dépasser le stock) et motif.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Seuils d’alerte de réapprovisionnement</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Être notifié au stock minimum pour commander à temps.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Configurer un seuil : minimum, actuel, fournisseur.</li><li>Commande lancée une fois le BA créé.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Inventaire et régularisation</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Compter le physique, constater l’écart, ajuster le système.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Saisissez le stock système et le stock physique : l’écart se calcule tout seul (physique − système).</li><li>Régularisé après correction.</li></ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m11">
+      <div class="module-head"><span class="module-num">11</span><div><h2>Machines &amp; Maintenance</h2></div></div>
+      <p class="module-desc">Garder le parc disponible et identifier les goulots.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Fiche technique de chaque machine</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Modèle, capacité, heures d’utilisation, documentation.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Ajouter une machine à l’arrivée d’un équipement.</li><li>Mettez à jour En production / En panne / Maintenance.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Maintenance préventive planifiée</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Entretenir selon les heures, les feuilles ou le calendrier, avant la panne.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Planifier : machine, déclencheur, échéance.</li><li>Terminée après l’intervention.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Signalement de pannes</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Déclaration rapide par l’opérateur, suivi jusqu’à résolution.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Signaler : machine, opérateur, date, résolution.</li><li>Informez le planning : créneaux à déplacer.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Suivi du taux d’utilisation des machines</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Temps productif / temps disponible pour repérer les goulots.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Saisir : heures disponibles, productives, taux %.</li><li>Goulot = file d’attente ; Sous-utilisé = rééquilibrer.</li></ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m12">
+      <div class="module-head"><span class="module-num">12</span><div><h2>Livraison &amp; Expédition</h2></div></div>
+      <p class="module-desc">Sortir les produits finis : tournée interne, transporteur ou retrait atelier.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Génération des bons de livraison</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Bordereau : destinataire, quantités, références expédiées.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Générer un BL après contrôle qualité.</li><li>Signé à la remise client ou transporteur.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Planification des tournées</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Organiser les livraisons par zone géographique ou transporteur.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Planifier : zone, transporteur, nombre d’arrêts, date.</li><li>Enchaînez avec les BL du jour.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Suivi de colis en ligne</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Partager un lien de suivi dès la prise en charge transporteur.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Ajouter un suivi : n°, lien, destinataire.</li><li>Le commercial peut coller le lien dans un e-mail.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Gestion du retrait en atelier</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Prévenir le client que sa commande est prête sur place.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Notifier : client, commande, date, canal SMS/e-mail.</li><li>Récupéré à l’enlèvement.</li></ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m13">
+      <div class="module-head"><span class="module-num">13</span><div><h2>Facturation &amp; Comptabilité</h2></div></div>
+      <p class="module-desc">Facturer et encaisser depuis les commandes converties, sans ressaisie.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Facturation automatique</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Générer une facture A4 de solde ou d’acompte depuis une commande, sans la modifier ni la supprimer ensuite.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol>
+              <li>Choisissez la commande, puis Solde (reste entier) ou Acompte.</li>
+              <li>Pour un acompte, saisissez un montant supérieur à zéro et inférieur au total restant. Générer ouvre l’aperçu A4.</li>
+            </ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Gestion des acomptes</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Encaisser un acompte sur une commande : le payé augmente, le reste diminue. Un reçu A4 peut être imprimé.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol>
+              <li>Choisissez la commande, indiquez le montant, puis Payer.</li>
+              <li>Imprimez le reçu de paiement. Pas de modification ni de suppression manuelle des lignes.</li>
+            </ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m14">
+      <div class="module-head"><span class="module-num">14</span><div><h2>Ressources Humaines</h2></div></div>
+      <p class="module-desc">Les bonnes personnes, aux bons postes, au bon moment.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Gestion des plannings d’équipe</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Répartir les opérateurs selon la charge de production.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Nouvelle affectation : collaborateur, poste, horaire, jour.</li><li>Alignez avec le planning machines.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Pointage du temps de travail</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Temps passé par personne sur une commande ou un poste (alimente la rentabilité).</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Saisir : collaborateur, commande/poste, heures, date.</li><li>Validé pour le reporting ; Corrigé en cas d’erreur.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Suivi des compétences et habilitations</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>N’affecter à une machine que les opérateurs habilités.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Ajouter : compétence, machine, expiration.</li><li>Filtrez À renouveler / Expirée avant d’affecter.</li></ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="m15">
+      <div class="module-head"><span class="module-num">15</span><div><h2>Communication &amp; Notifications</h2></div></div>
+      <p class="module-desc">Informer client et équipes aux moments clés du dossier.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Notifications automatiques par e-mail ou SMS</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Alerter : devis envoyé, BAT à valider, commande expédiée.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Créer une automatisation : canal, événement, modèle.</li><li>Active = en service ; Pause pour couper temporairement.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Messagerie interne</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Échanger commercial ↔ atelier sur un dossier en cours.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Nouveau message : objet, de, à, dossier, corps.</li><li>Non lu → Lu ; archivez les fils clos.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Modèles de communication personnalisables</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>E-mails, SMS et documents aux couleurs de l’entreprise, réutilisés par les automatisations.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Nouveau modèle : canal, objet, contenu.</li><li>Publié avant de le lier à une automatisation.</li></ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block pivot" id="m17">
+      <div class="module-head"><span class="module-num filled">17</span><div><span class="stage-tag">Analyse</span><h2>Reporting &amp; Tableaux de bord</h2></div></div>
+      <p class="module-desc">Décider sur des chiffres, en bout de chaîne.</p>
+      <div class="features">
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Tableau de bord de l’activité</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>CA, commandes en cours, occupation machines, BAT en attente.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Consultez ou ajoutez un indicateur (période, tendance).</li><li>Complète, sans la remplacer, la Vue d’ensemble.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Rapports de rentabilité</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Marges par client, type de produit ou période.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Nouveau rapport : axe, marge, période.</li><li>Exportez pour une réunion commerciale.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Statistiques de production</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Volumes imprimés, taux de rebut, respect des délais (OTD).</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Filtrez la période ; créez un indicateur si besoin.</li><li>Rebut élevé → Qualité / Machines.</li></ol></article>
+          </div>
+        </div></article>
+        <article class="feature"><span class="reg"><span class="reg-circle"></span></span><div>
+          <h4>Export de rapports personnalisés</h4>
+          <div class="pair">
+            <article><h5 data-i18n="guide.what">À quoi ça sert</h5><p>Composer un rapport PDF, CSV ou XLSX selon les indicateurs choisis.</p></article>
+            <article class="how"><h5 data-i18n="guide.how">Comment l’utiliser</h5><ol><li>Composer un export : nom, indicateurs, format, période.</li><li>Bouton Exporter pour le CSV de la liste.</li></ol></article>
+          </div>
+        </div></article>
+      </div>
+    </section>
+
+    <section class="block" id="parcours">
+      <div class="module-head"><span class="module-num filled">23</span><div><span class="stage-tag">Flux réel</span><h2>Parcours type d’un dossier</h2></div></div>
+      <p class="module-desc">Ordre d’utilisation aligné sur le cahier des charges : configuration → exploitation → reporting.</p>
+      <ol class="steps" style="padding-left:0;list-style:none;">
+        <li class="step"><b>01</b>Configuration — produit, tarif, poste machine.</li>
+        <li class="step"><b>02</b>Clients — fiche et contacts (dont validateur BAT).</li>
+        <li class="step"><b>03</b>Devis — calculateur → conversion en commande (En attente) → suivi des statuts.</li>
+        <li class="step"><b>04</b>Prépresse — dépôt des fichiers clients sur la commande.</li>
+        <li class="step"><b>05</b>Stocks / Achats — vérifier le stock ou commander.</li>
+        <li class="step"><b>06</b>Planification — créneau machine sur la grille semaine.</li>
+        <li class="step"><b>07</b>Livraison — BL, tournée ou retrait, suivi colis.</li>
+        <li class="step"><b>08</b>Facturation — acompte puis facture A4 depuis la commande.</li>
+        <li class="step"><b>09</b>Communication — notifications aux étapes clés.</li>
+        <li class="step"><b>10</b>Reporting — clôture de période.</li>
+      </ol>
+    </section>
+
+    <section class="block" id="limites">
+      <div class="module-head"><span class="module-num">24</span><div><h2>Limites de la version mock</h2></div></div>
+      <p class="module-desc">Ce que la démo ne fait pas encore, pour éviter les malentendus en formation.</p>
+      <ul>
+        <li>Aucune base de données, aucun e-mail ou SMS réellement envoyé.</li>
+        <li>Les fichiers ne sont pas stockés sur un serveur.</li>
+        <li>Les données vivent dans <b>ce navigateur</b>. Un autre PC ou une navigation privée revient au jeu de démo.</li>
+        <li>La suppression n’est autorisée qu’en profil Administrateur.</li>
+        <li>L’icône de restauration ne remet à zéro que l’écran courant.</li>
+      </ul>
+      <p class="tip" style="margin-top:16px;"><b>Ensuite.</b> Quand un vrai backend sera branché, les mêmes écrans et les mêmes gestes resteront valables ; seul le stockage changera.</p>
+    </section>
+
+  </main>
+</div>
+
+<div class="cmyk-bar"><span class="c"></span><span class="m"></span><span class="y"></span><span class="k"></span></div>
+<footer>
+  <p data-i18n="guide.footer">Guide utilisateur NanoPrint — 14 modules. Source métier : cahier des charges IMP-2026-SPEC-02.</p>
+  <div class="mark"><span class="reg" style="width:12px;height:12px;"><span class="reg-circle"></span></span> <span data-i18n="guide.manual">Manuel d’utilisation</span></div>
+</footer>
+
+<script>
+(function () {
+  var KEY = "nanoprint.locale.v1";
+  var select = document.getElementById("guide-locale");
+  var dict = {
+    en: {
+      "guide.eyebrow": "User manual — NanoPrint",
+      "guide.title": "User guide",
+      "guide.lead": "Complete handbook for the print-shop administration platform: what each screen is for, how to use it day to day, and in which order to run a job.",
+      "guide.flow": "Current version: <b>mock</b> data (local, no backend). The gestures remain those of a real operation.",
+      "guide.doc": "Document",
+      "guide.modules": "Modules",
+      "guide.features": "Features",
+      "guide.public": "Audience",
+      "guide.audience": "Workshop teams",
+      "guide.what": "What it is for",
+      "guide.how": "How to use it",
+      "guide.footer": "NanoPrint user guide — 14 modules. Business source: specification IMP-2026-SPEC-02.",
+      "guide.manual": "User manual",
+      "toc.title": "Contents",
+      "toc.sub": "Getting started then modules",
+      "toc.01": "01 Getting started",
+      "toc.02": "02 Sign-in & roles",
+      "toc.03": "03 Interface",
+      "toc.04": "04 Shared actions",
+      "toc.05": "05 Overview",
+      "toc.biz": "Business modules",
+      "toc.m1": "01 Configuration",
+      "toc.m2": "02 Users",
+      "toc.m3": "03 Customers",
+      "toc.m4": "04 Quotes & orders",
+      "toc.m5": "05 Prepress",
+      "toc.m6": "06 Scheduling",
+      "toc.m7": "07 Purchasing",
+      "toc.m8": "08 Stock",
+      "toc.m11": "11 Machines",
+      "toc.m12": "12 Deliveries",
+      "toc.m13": "13 Billing",
+      "toc.m14": "14 Team",
+      "toc.m15": "15 Communication",
+      "toc.m17": "17 Reporting",
+      "toc.annex": "Annexes",
+      "toc.path": "Typical job path",
+      "toc.limits": "Mock limits"
+    },
+    es: {
+      "guide.eyebrow": "Manual de usuario — NanoPrint",
+      "guide.title": "Guía de uso",
+      "guide.lead": "Manual completo de la plataforma de administración de imprenta: para qué sirve cada pantalla, cómo usarla a diario y en qué orden encadenar los expedientes.",
+      "guide.flow": "Versión actual: datos <b>mock</b> (locales, sin backend). Los gestos siguen siendo los de una explotación real.",
+      "guide.doc": "Documento",
+      "guide.modules": "Módulos",
+      "guide.features": "Funciones",
+      "guide.public": "Público",
+      "guide.audience": "Equipos de taller",
+      "guide.what": "Para qué sirve",
+      "guide.how": "Cómo usarlo",
+      "guide.footer": "Guía de usuario NanoPrint — 14 módulos. Fuente de negocio: pliego IMP-2026-SPEC-02.",
+      "guide.manual": "Manual de uso",
+      "toc.title": "Sumario",
+      "toc.sub": "Puesta en marcha y luego módulos",
+      "toc.01": "01 Arranque",
+      "toc.02": "02 Conexión y roles",
+      "toc.03": "03 Interfaz",
+      "toc.04": "04 Gestos comunes",
+      "toc.05": "05 Vista general",
+      "toc.biz": "Módulos de negocio",
+      "toc.m1": "01 Configuración",
+      "toc.m2": "02 Usuarios",
+      "toc.m3": "03 Clientes",
+      "toc.m4": "04 Presupuestos y pedidos",
+      "toc.m5": "05 Preimpresión",
+      "toc.m6": "06 Planificación",
+      "toc.m7": "07 Compras",
+      "toc.m8": "08 Existencias",
+      "toc.m11": "11 Máquinas",
+      "toc.m12": "12 Entregas",
+      "toc.m13": "13 Facturación",
+      "toc.m14": "14 Equipo",
+      "toc.m15": "15 Comunicación",
+      "toc.m17": "17 Informes",
+      "toc.annex": "Anexos",
+      "toc.path": "Recorrido de un expediente",
+      "toc.limits": "Límites mock"
+    }
+  };
+  var phrases = {
+    en: {
+      "Prise en main": "Getting started",
+      "Pilotage": "Steering",
+      "Fondations": "Foundations",
+      "Flux réel": "Real flow",
+      "Démarrage": "Getting started",
+      "Connexion et rôles": "Sign-in and roles",
+      "Interface générale": "General interface",
+      "Gestes communs": "Shared actions",
+      "Vue d’ensemble": "Overview",
+      "Configuration & Paramétrage": "Configuration & settings",
+      "Utilisateurs & Sécurité": "Users & security",
+      "Gestion des Clients (CRM)": "Customer management (CRM)",
+      "Devis & Commandes": "Quotes & orders",
+      "Prépresse & Fichiers": "Prepress & files",
+      "Planification (Ordonnancement)": "Scheduling",
+      "Achats & Fournisseurs": "Purchasing & suppliers",
+      "Stocks & Consommables": "Stock & consumables",
+      "Machines & Maintenance": "Machines & maintenance",
+      "Livraison & Expédition": "Delivery & shipping",
+      "Facturation & Comptabilité": "Billing & accounting",
+      "Ressources Humaines": "Human resources",
+      "Communication & Notifications": "Communication & notifications",
+      "Reporting & Tableaux de bord": "Reporting & dashboards",
+      "Parcours type d’un dossier": "Typical job path",
+      "Limites de la version mock": "Limits of the mock version",
+      "Consulter": "View",
+      "Rechercher et filtrer": "Search and filter",
+      "Créer / Modifier / Supprimer": "Create / Edit / Delete",
+      "Exporter, imprimer, restaurer": "Export, print, restore",
+      "Catalogue matières": "Materials catalogue",
+      "Catalogue produits et prestations": "Products and services catalogue",
+      "Grilles tarifaires et règles de prix": "Price grids and pricing rules",
+      "Paramétrage des machines et postes": "Machines and workstations setup",
+      "Modèles de documents": "Document templates",
+      "Taxes": "Taxes",
+      "Paramètres généraux": "General settings",
+      "Gestion des rôles et permissions": "Roles and permissions",
+      "Journal des actions (audit trail)": "Action log (audit trail)",
+      "Sauvegarde et sécurité des données": "Backup and data security",
+      "Fiche client détaillée": "Detailed customer record",
+      "Historique des commandes": "Order history",
+      "Segmentation client": "Customer segmentation",
+      "Gestion des contacts multiples": "Multiple contacts",
+      "Calculateur de prix automatique": "Automatic price calculator",
+      "Génération de devis multi-options": "Multi-option quote generation",
+      "Conversion devis vers commande": "Quote to order conversion",
+      "Suivi des statuts de commande": "Order status tracking",
+      "Gestion des avenants": "Amendments",
+      "Réception et stockage des fichiers clients": "Customer file reception and storage",
+      "Planning visuel des machines": "Visual machine schedule",
+      "Fiches fournisseurs": "Supplier records",
+      "Approvisionnement": "Replenishment",
+      "Historique d’approvisionnement": "Replenishment history",
+      "Suivi stock": "Stock tracking",
+      "Seuils d’alerte de réapprovisionnement": "Reorder alert thresholds",
+      "Inventaire et régularisation": "Inventory and adjustment",
+      "Fiche technique de chaque machine": "Technical record of each machine",
+      "Maintenance préventive planifiée": "Planned preventive maintenance",
+      "Signalement de pannes": "Breakdown reporting",
+      "Suivi du taux d’utilisation des machines": "Machine utilisation rate",
+      "Génération des bons de livraison": "Delivery note generation",
+      "Planification des tournées": "Delivery round planning",
+      "Suivi de colis en ligne": "Online parcel tracking",
+      "Gestion du retrait en atelier": "Workshop pickup",
+      "Facturation automatique": "Automatic invoicing",
+      "Gestion des acomptes": "Deposit management",
+      "Gestion des plannings d’équipe": "Team schedules",
+      "Pointage du temps de travail": "Work time clocking",
+      "Suivi des compétences et habilitations": "Skills and authorisations",
+      "Notifications automatiques par e-mail ou SMS": "Automatic email or SMS notifications",
+      "Messagerie interne": "Internal messaging",
+      "Modèles de communication personnalisables": "Customisable communication templates",
+      "Tableau de bord de l’activité": "Activity dashboard",
+      "Rapports de rentabilité": "Profitability reports",
+      "Statistiques de production": "Production statistics",
+      "Export de rapports personnalisés": "Custom report export",
+      "Par type de client": "By customer type",
+      "Par importance (automatique)": "By importance (automatic)",
+      "Par comportement (automatique)": "By behaviour (automatic)"
+    },
+    es: {
+      "Prise en main": "Puesta en marcha",
+      "Pilotage": "Dirección",
+      "Fondations": "Fundamentos",
+      "Flux réel": "Flujo real",
+      "Démarrage": "Arranque",
+      "Connexion et rôles": "Conexión y roles",
+      "Interface générale": "Interfaz general",
+      "Gestes communs": "Gestos comunes",
+      "Vue d’ensemble": "Vista general",
+      "Configuration & Paramétrage": "Configuración y parametrización",
+      "Utilisateurs & Sécurité": "Usuarios y seguridad",
+      "Gestion des Clients (CRM)": "Gestión de clientes (CRM)",
+      "Devis & Commandes": "Presupuestos y pedidos",
+      "Prépresse & Fichiers": "Preimpresión y archivos",
+      "Planification (Ordonnancement)": "Planificación",
+      "Achats & Fournisseurs": "Compras y proveedores",
+      "Stocks & Consommables": "Existencias y consumibles",
+      "Machines & Maintenance": "Máquinas y mantenimiento",
+      "Livraison & Expédition": "Entrega y expedición",
+      "Facturation & Comptabilité": "Facturación y contabilidad",
+      "Ressources Humaines": "Recursos humanos",
+      "Communication & Notifications": "Comunicación y notificaciones",
+      "Reporting & Tableaux de bord": "Informes y cuadros de mando",
+      "Parcours type d’un dossier": "Recorrido tipo de un expediente",
+      "Limites de la version mock": "Límites de la versión mock",
+      "Consulter": "Consultar",
+      "Rechercher et filtrer": "Buscar y filtrar",
+      "Créer / Modifier / Supprimer": "Crear / Modificar / Eliminar",
+      "Exporter, imprimer, restaurer": "Exportar, imprimir, restaurar",
+      "Catalogue matières": "Catálogo de materias",
+      "Catalogue produits et prestations": "Catálogo de productos y prestaciones",
+      "Grilles tarifaires et règles de prix": "Tablas tarifarias y reglas de precio",
+      "Paramétrage des machines et postes": "Parametrización de máquinas y puestos",
+      "Modèles de documents": "Modelos de documentos",
+      "Taxes": "Impuestos",
+      "Paramètres généraux": "Parámetros generales",
+      "Gestion des rôles et permissions": "Gestión de roles y permisos",
+      "Journal des actions (audit trail)": "Registro de acciones (auditoría)",
+      "Sauvegarde et sécurité des données": "Copia de seguridad y protección de datos",
+      "Fiche client détaillée": "Ficha de cliente detallada",
+      "Historique des commandes": "Historial de pedidos",
+      "Segmentation client": "Segmentación de clientes",
+      "Gestion des contacts multiples": "Gestión de contactos múltiples",
+      "Calculateur de prix automatique": "Calculadora automática de precios",
+      "Génération de devis multi-options": "Generación de presupuestos multiopción",
+      "Conversion devis vers commande": "Conversión de presupuesto a pedido",
+      "Suivi des statuts de commande": "Seguimiento de estados de pedido",
+      "Gestion des avenants": "Gestión de anexos",
+      "Réception et stockage des fichiers clients": "Recepción y almacenamiento de archivos de clientes",
+      "Planning visuel des machines": "Planificación visual de máquinas",
+      "Fiches fournisseurs": "Fichas de proveedores",
+      "Approvisionnement": "Aprovisionamiento",
+      "Historique d’approvisionnement": "Historial de aprovisionamiento",
+      "Suivi stock": "Seguimiento de stock",
+      "Seuils d’alerte de réapprovisionnement": "Umbrales de alerta de reposición",
+      "Inventaire et régularisation": "Inventario y regularización",
+      "Fiche technique de chaque machine": "Ficha técnica de cada máquina",
+      "Maintenance préventive planifiée": "Mantenimiento preventivo planificado",
+      "Signalement de pannes": "Comunicación de averías",
+      "Suivi du taux d’utilisation des machines": "Seguimiento de la tasa de utilización",
+      "Génération des bons de livraison": "Generación de albaranes",
+      "Planification des tournées": "Planificación de rutas",
+      "Suivi de colis en ligne": "Seguimiento de paquetes en línea",
+      "Gestion du retrait en atelier": "Gestión de la recogida en taller",
+      "Facturation automatique": "Facturación automática",
+      "Gestion des acomptes": "Gestión de anticipos",
+      "Gestion des plannings d’équipe": "Gestión de planificaciones de equipo",
+      "Pointage du temps de travail": "Registro del tiempo de trabajo",
+      "Suivi des compétences et habilitations": "Seguimiento de competencias y habilitaciones",
+      "Notifications automatiques par e-mail ou SMS": "Notificaciones automáticas por correo o SMS",
+      "Messagerie interne": "Mensajería interna",
+      "Modèles de communication personnalisables": "Modelos de comunicación personalizables",
+      "Tableau de bord de l’activité": "Cuadro de mando de la actividad",
+      "Rapports de rentabilité": "Informes de rentabilidad",
+      "Statistiques de production": "Estadísticas de producción",
+      "Export de rapports personnalisés": "Exportación de informes personalizados",
+      "Par type de client": "Por tipo de cliente",
+      "Par importance (automatique)": "Por importancia (automático)",
+      "Par comportement (automatique)": "Por comportamiento (automático)"
+    }
+  };
+  var descs = {
+    en: {
+      "Lancer l’application en local. La première page affichée est toujours l’écran de connexion.": "Start the application locally. The first page shown is always the sign-in screen.",
+      "Contrôler qui entre dans l’atelier numérique. Le rôle limite notamment la suppression (administrateur uniquement).": "Control who enters the digital workshop. The role especially limits deletion (administrator only).",
+      "Repères visuels pour se déplacer sans se perdre entre les 14 modules.": "Visual landmarks to move around the 14 modules without getting lost.",
+      "Tous les écrans métier fonctionnent de la même façon. Seuls les champs, statuts et libellés changent.": "All business screens work the same way. Only fields, statuses and labels change.",
+      "État de l’imprimerie en un coup d’œil : CA du mois, commandes, occupation machines, points d’attention.": "The print shop at a glance: monthly revenue, orders, machine occupancy, attention points.",
+      "Poser les fondations avant de vendre ou de produire : catalogue produits et matières, tarifs, machines, modèles de documents et règles d’entreprise. À utiliser à la mise en service, puis à chaque nouveau produit, matière ou équipement.": "Lay the foundations before selling or producing: product and material catalogues, prices, machines, document templates and company rules. Use at go-live, then for each new product, material or machine.",
+      "Qui a le droit de faire quoi, ce qui a été modifié, et comment les données sont sauvegardées.": "Who may do what, what was changed, and how data is backed up.",
+      "Centraliser la relation client, de la fiche 360° aux commandes et aux contacts.": "Centralise the customer relationship, from the 360° record to orders and contacts.",
+      "Chaîne commerciale : du chiffrage à la commande ferme.": "Sales chain: from costing to a firm order.",
+      "Recevoir et stocker les fichiers clients rattachés aux commandes converties.": "Receive and store customer files attached to converted orders.",
+      "Voir ce qui est prévu sur chaque machine, et quand.": "See what is planned on each machine, and when.",
+      "Acheter papier, encres et services au bon prix, puis réceptionner.": "Buy paper, inks and services at the right price, then receive them.",
+      "Ne jamais lancer un job sans matière disponible.": "Never start a job without available material.",
+      "Garder le parc disponible et identifier les goulots.": "Keep the fleet available and spot bottlenecks.",
+      "Sortir les produits finis : tournée interne, transporteur ou retrait atelier.": "Ship finished goods: internal round, carrier or workshop pickup.",
+      "Facturer et encaisser depuis les commandes converties, sans ressaisie.": "Invoice and collect from converted orders, without re-keying.",
+      "Les bonnes personnes, aux bons postes, au bon moment.": "The right people, at the right workstations, at the right time.",
+      "Informer client et équipes aux moments clés du dossier.": "Inform the customer and teams at key steps of the job.",
+      "Décider sur des chiffres, en bout de chaîne.": "Decide on figures, at the end of the chain.",
+      "Ordre d’utilisation aligné sur le cahier des charges : configuration → exploitation → reporting.": "Usage order aligned with the specification: configuration → operations → reporting.",
+      "Ce que la démo ne fait pas encore, pour éviter les malentendus en formation.": "What the demo does not do yet, to avoid misunderstandings in training."
+    },
+    es: {
+      "Lancer l’application en local. La première page affichée est toujours l’écran de connexion.": "Arrancar la aplicación en local. La primera página mostrada es siempre la pantalla de conexión.",
+      "Contrôler qui entre dans l’atelier numérique. Le rôle limite notamment la suppression (administrateur uniquement).": "Controlar quién entra en el taller digital. El rol limita sobre todo la eliminación (solo administrador).",
+      "Repères visuels pour se déplacer sans se perdre entre les 14 modules.": "Referencias visuales para moverse sin perderse entre los 14 módulos.",
+      "Tous les écrans métier fonctionnent de la même façon. Seuls les champs, statuts et libellés changent.": "Todas las pantallas de negocio funcionan igual. Solo cambian los campos, estados y etiquetas.",
+      "État de l’imprimerie en un coup d’œil : CA du mois, commandes, occupation machines, points d’attention.": "Estado de la imprenta de un vistazo: facturación del mes, pedidos, ocupación de máquinas, puntos de atención.",
+      "Poser les fondations avant de vendre ou de produire : catalogue produits et matières, tarifs, machines, modèles de documents et règles d’entreprise. À utiliser à la mise en service, puis à chaque nouveau produit, matière ou équipement.": "Sentar las bases antes de vender o producir: catálogo de productos y materias, tarifas, máquinas, modelos de documentos y reglas de empresa. Úselo en la puesta en marcha y luego con cada nuevo producto, materia o equipo.",
+      "Qui a le droit de faire quoi, ce qui a été modifié, et comment les données sont sauvegardées.": "Quién puede hacer qué, qué se ha modificado y cómo se respaldan los datos.",
+      "Centraliser la relation client, de la fiche 360° aux commandes et aux contacts.": "Centralizar la relación con el cliente, de la ficha 360° a los pedidos y contactos.",
+      "Chaîne commerciale : du chiffrage à la commande ferme.": "Cadena comercial: del cálculo al pedido en firme.",
+      "Recevoir et stocker les fichiers clients rattachés aux commandes converties.": "Recibir y almacenar los archivos de clientes vinculados a los pedidos convertidos.",
+      "Voir ce qui est prévu sur chaque machine, et quand.": "Ver qué está previsto en cada máquina, y cuándo.",
+      "Acheter papier, encres et services au bon prix, puis réceptionner.": "Comprar papel, tintas y servicios al buen precio, luego recepcionar.",
+      "Ne jamais lancer un job sans matière disponible.": "Nunca lanzar un trabajo sin materia disponible.",
+      "Garder le parc disponible et identifier les goulots.": "Mantener el parque disponible e identificar los cuellos de botella.",
+      "Sortir les produits finis : tournée interne, transporteur ou retrait atelier.": "Sacar los productos acabados: ruta interna, transportista o recogida en taller.",
+      "Facturer et encaisser depuis les commandes converties, sans ressaisie.": "Facturar y cobrar desde los pedidos convertidos, sin volver a teclear.",
+      "Les bonnes personnes, aux bons postes, au bon moment.": "Las personas adecuadas, en los puestos adecuados, en el momento adecuado.",
+      "Informer client et équipes aux moments clés du dossier.": "Informar al cliente y a los equipos en los momentos clave del expediente.",
+      "Décider sur des chiffres, en bout de chaîne.": "Decidir con cifras, al final de la cadena.",
+      "Ordre d’utilisation aligné sur le cahier des charges : configuration → exploitation → reporting.": "Orden de uso alineado con el pliego: configuración → explotación → informes.",
+      "Ce que la démo ne fait pas encore, pour éviter les malentendus en formation.": "Lo que la demo aún no hace, para evitar malentendidos en la formación."
+    }
+  };
+
+  function apply(locale) {
+    document.documentElement.lang = locale === "en" ? "en" : locale === "es" ? "es" : "fr";
+    document.querySelectorAll("[data-i18n]").forEach(function (el) {
+      if (!el.dataset.fr) el.dataset.fr = el.textContent;
+      var table = dict[locale];
+      el.textContent = (table && table[el.dataset.i18n]) || el.dataset.fr;
+    });
+    document.querySelectorAll("[data-i18n-html]").forEach(function (el) {
+      if (!el.dataset.frHtml) el.dataset.frHtml = el.innerHTML;
+      var table = dict[locale];
+      el.innerHTML = (table && table[el.dataset.i18nHtml]) || el.dataset.frHtml;
+    });
+    document.querySelectorAll("h2, h4, .stage-tag, .seg-rules h5").forEach(function (el) {
+      if (el.hasAttribute("data-i18n")) return;
+      if (!el.dataset.fr) el.dataset.fr = el.textContent.trim();
+      var table = phrases[locale];
+      el.textContent = (table && table[el.dataset.fr]) || el.dataset.fr;
+    });
+    document.querySelectorAll("p.module-desc").forEach(function (el) {
+      if (!el.dataset.fr) el.dataset.fr = el.textContent.trim();
+      var table = descs[locale];
+      el.textContent = (table && table[el.dataset.fr]) || el.dataset.fr;
+    });
+    var langLabel = document.querySelector(".guide-lang label");
+    if (langLabel) langLabel.textContent = locale === "en" ? "Language" : locale === "es" ? "Idioma" : "Langue";
+    if (select) select.setAttribute("aria-label", langLabel ? langLabel.textContent : "Langue");
+    document.title = locale === "en" ? "User guide — NanoPrint" : locale === "es" ? "Guía de uso — NanoPrint" : "Guide d’utilisation — NanoPrint";
+  }
+
+  var saved = "fr";
+  try { saved = localStorage.getItem(KEY) || "fr"; } catch (e) {}
+  if (saved !== "fr" && saved !== "en" && saved !== "es") saved = "fr";
+  if (select) {
+    select.value = saved;
+    select.addEventListener("change", function () {
+      try { localStorage.setItem(KEY, select.value); } catch (e) {}
+      apply(select.value);
+    });
+  }
+  apply(saved);
+})();
+</script>
+
+</body>
+</html>
