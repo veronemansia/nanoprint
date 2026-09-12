@@ -37,6 +37,7 @@ yarn-error.log*
 
 # PHP API
 api-php/storage/logs/*.log
+api-php/storage/backups/**/*.sql
 api-php/.env
 
 # vercel

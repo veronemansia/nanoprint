@@ -46,13 +46,14 @@ final class CompanyService
             $roleIds = $this->insertDefaultRoles($companyId);
             $userId = Uuid::v4();
             $this->pdo->prepare(
-                'INSERT INTO users (id, company_id, role_id, name, email, phone, address, password_hash, status, is_company_owner)
-                 VALUES (:id, :company_id, :role_id, :name, :email, :phone, :address, :password_hash, :status, 1)',
+                'INSERT INTO users (id, company_id, role_id, name, reference, email, phone, address, password_hash, status, is_company_owner)
+                 VALUES (:id, :company_id, :role_id, :name, :reference, :email, :phone, :address, :password_hash, :status, 1)',
             )->execute([
                 'id' => $userId,
                 'company_id' => $companyId,
                 'role_id' => $roleIds['Administrateur'],
                 'name' => $name,
+                'reference' => 'USR-001',
                 'email' => $email,
                 'phone' => '',
                 'address' => '',

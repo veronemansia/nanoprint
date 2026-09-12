@@ -86,14 +86,14 @@ final class SeedDemo
         }
         $hash = password_hash('demo2026', PASSWORD_DEFAULT);
         $users = [
-            ['usr-1', 'USR-001', 'Awa Diop', 'awa.diop@nanoprint.demo', '+221 77 100 00 01', 'Cité Keur Gorgui, Dakar', 'Administrateur'],
-            ['usr-2', 'USR-002', 'Moussa Konaté', 'moussa.konate@nanoprint.sn', '+221 77 100 00 02', 'Mermoz, Dakar', 'Commercial'],
-            ['usr-3', 'USR-003', 'Fatou Bamba', 'fatou.bamba@nanoprint.sn', '+221 76 200 00 03', 'Sacré-Cœur, Dakar', 'Comptable'],
-            ['usr-4', 'USR-004', 'Ibrahima Diallo', 'ibrahima.diallo@nanoprint.sn', '+221 78 300 00 04', 'Guédiawaye', 'Opérateur'],
+            ['usr-1', 'USR-002', 'Awa Diop', 'awa.diop@nanoprint.demo', '+221 77 100 00 01', 'Cité Keur Gorgui, Dakar', 'Administrateur'],
+            ['usr-2', 'USR-003', 'Moussa Konaté', 'moussa.konate@nanoprint.sn', '+221 77 100 00 02', 'Mermoz, Dakar', 'Commercial'],
+            ['usr-3', 'USR-004', 'Fatou Bamba', 'fatou.bamba@nanoprint.sn', '+221 76 200 00 03', 'Sacré-Cœur, Dakar', 'Comptable'],
+            ['usr-4', 'USR-005', 'Ibrahima Diallo', 'ibrahima.diallo@nanoprint.sn', '+221 78 300 00 04', 'Guédiawaye', 'Opérateur'],
         ];
         $insert = $this->pdo->prepare(
-            'INSERT INTO users (id, company_id, role_id, name, email, phone, address, password_hash, status, is_company_owner)
-             VALUES (:id, :company_id, :role_id, :name, :email, :phone, :address, :password_hash, :status, 0)',
+            'INSERT INTO users (id, company_id, role_id, name, reference, email, phone, address, password_hash, status, is_company_owner)
+             VALUES (:id, :company_id, :role_id, :name, :reference, :email, :phone, :address, :password_hash, :status, 0)',
         );
         foreach ($users as $user) {
             $insert->execute([
@@ -101,6 +101,7 @@ final class SeedDemo
                 'company_id' => $companyId,
                 'role_id' => $roles[$user[6]],
                 'name' => $user[2],
+                'reference' => $user[1],
                 'email' => $user[3],
                 'phone' => $user[4],
                 'address' => $user[5],

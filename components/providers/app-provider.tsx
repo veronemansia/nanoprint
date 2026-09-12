@@ -63,9 +63,11 @@ import {
   createRecordAction,
   deleteLookupAction,
   deleteRecordAction,
+  deleteRoleAction,
   renameLookupAction,
   resetSettingsAction,
   resetTaxesAction,
+  saveRoleAction,
   saveSettingsAction,
   updateRecordAction,
 } from "@/app/actions/data";
@@ -1038,35 +1040,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [notify, apiLive]);
 
   const saveRole = useCallback(async (role: AccessRole) => {
+    const apply = (next: AccessRole) => {
+      setAccessRoles((current) => {
+        const exists = current.some((item) => item.id === next.id);
+        return exists ? current.map((item) => (item.id === next.id ? next : item)) : [...current, next];
+      });
+      setRecords((current) => ({
+        ...current,
+        "roles-permissions": (current["roles-permissions"] ?? []).map((record) =>
+          String(record.roleId) === next.id ? { ...record, role: next.name } : record,
+        ),
+      }));
+      notify("Rôle enregistré", t("toast.roleSaved", "{name} a été mis à jour.", { name: next.name }));
+    };
+    if (apiLive) {
+      try {
+        apply(normalizeAccessRoles([await saveRoleAction(role)])[0]);
+        return;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Enregistrement du rôle impossible.", "error");
+        throw error;
+      }
+    }
     await wait(350);
-    const next = normalizeAccessRoles([role])[0];
-    setAccessRoles((current) => {
-      const exists = current.some((item) => item.id === next.id);
-      return exists ? current.map((item) => (item.id === next.id ? next : item)) : [...current, next];
-    });
-    setRecords((current) => ({
-      ...current,
-      "roles-permissions": (current["roles-permissions"] ?? []).map((record) =>
-        String(record.roleId) === next.id ? { ...record, role: next.name } : record,
-      ),
-    }));
-    notify("Rôle enregistré", t("toast.roleSaved", "{name} a été mis à jour.", { name: next.name }));
-  }, [notify, t]);
+    apply(normalizeAccessRoles([role])[0]);
+  }, [notify, t, apiLive]);
 
   const deleteRole = useCallback(async (id: string) => {
+    const apply = (remaining: AccessRole[], fallback: AccessRole) => {
+      setAccessRoles(remaining);
+      setRecords((current) => ({
+        ...current,
+        "roles-permissions": (current["roles-permissions"] ?? []).map((record) =>
+          String(record.roleId) === id ? { ...record, roleId: fallback.id, role: fallback.name } : record,
+        ),
+      }));
+      notify("Rôle supprimé", "Les utilisateurs concernés ont été réaffectés.", "info");
+    };
+    if (apiLive) {
+      try {
+        const result = await deleteRoleAction(id);
+        const remaining = normalizeAccessRoles(result.accessRoles);
+        const fallback = remaining.find((item) => item.id === result.fallback.id) ?? remaining[0];
+        if (!fallback) return;
+        apply(remaining, fallback);
+        return;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Suppression du rôle impossible.", "error");
+        throw error;
+      }
+    }
     await wait(350);
     const remaining = accessRoles.filter((item) => item.id !== id);
     if (remaining.length === accessRoles.length || !remaining.length) return;
-    const fallback = remaining[0];
-    setAccessRoles(remaining);
-    setRecords((current) => ({
-      ...current,
-      "roles-permissions": (current["roles-permissions"] ?? []).map((record) =>
-        String(record.roleId) === id ? { ...record, roleId: fallback.id, role: fallback.name } : record,
-      ),
-    }));
-    notify("Rôle supprimé", "Les utilisateurs concernés ont été réaffectés.", "info");
-  }, [accessRoles, notify]);
+    apply(remaining, remaining[0]);
+  }, [accessRoles, notify, apiLive]);
 
   const resetFeature = useCallback((featureId: string) => {
     if (featureId === "parametres-generaux") {
@@ -1094,9 +1122,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (featureId === "roles-permissions") {
+      if (apiLive) {
+        void bootstrapAction().then((boot) => {
+          if (!boot) return;
+          setAccessRoles(normalizeAccessRoles(boot.accessRoles));
+          setRecords((current) => ({
+            ...current,
+            "roles-permissions": boot.records["roles-permissions"] ?? [],
+          }));
+          notify("Données restaurées", "Utilisateurs et rôles rechargés depuis la base.", "info");
+        });
+        return;
+      }
       setAccessRoles(defaultAccessRoles);
       setRecords((current) => ({ ...current, "roles-permissions": mockRecords["roles-permissions"] ?? [] }));
       notify("Données restaurées", "Utilisateurs et rôles de démonstration rétablis.", "info");
+      return;
+    }
+    if ((featureId === "audit-trail" || featureId === "sauvegardes") && apiLive) {
+      void bootstrapAction().then((boot) => {
+        if (!boot) return;
+        setRecords((current) => ({
+          ...current,
+          [featureId]: boot.records[featureId] ?? [],
+        }));
+        notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
+      });
       return;
     }
     if (featureId === "segmentation") {

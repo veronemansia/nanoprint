@@ -19,6 +19,7 @@ DROP TABLE IF EXISTS workshops;
 DROP TABLE IF EXISTS taxes;
 DROP TABLE IF EXISTS currencies;
 DROP TABLE IF EXISTS company_settings;
+DROP TABLE IF EXISTS data_backups;
 DROP TABLE IF EXISTS audit_logs;
 DROP TABLE IF EXISTS sessions;
 DROP TABLE IF EXISTS role_permissions;
@@ -66,6 +67,7 @@ CREATE TABLE users (
   company_id CHAR(36) NOT NULL,
   role_id CHAR(36) NOT NULL,
   name VARCHAR(190) NOT NULL,
+  reference VARCHAR(32) NOT NULL,
   email VARCHAR(190) NULL,
   phone VARCHAR(64) NOT NULL DEFAULT '',
   address VARCHAR(255) NOT NULL DEFAULT '',
@@ -77,6 +79,7 @@ CREATE TABLE users (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_company_email (company_id, email),
+  UNIQUE KEY uq_users_company_reference (company_id, reference),
   KEY idx_users_email (email),
   CONSTRAINT fk_users_company FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE,
   CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles (id)
@@ -311,6 +314,24 @@ CREATE TABLE price_tiers (
   PRIMARY KEY (id),
   KEY idx_price_tiers_product (product_id),
   CONSTRAINT fk_price_tiers_product FOREIGN KEY (product_id) REFERENCES catalogue_products (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE data_backups (
+  id CHAR(36) NOT NULL,
+  company_id CHAR(36) NOT NULL,
+  reference VARCHAR(32) NOT NULL,
+  name VARCHAR(190) NOT NULL,
+  frequency VARCHAR(64) NOT NULL DEFAULT 'Manuelle',
+  size VARCHAR(32) NOT NULL DEFAULT '',
+  location VARCHAR(255) NOT NULL DEFAULT '',
+  status VARCHAR(32) NOT NULL DEFAULT 'Réussie',
+  last_run DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_data_backups_ref (company_id, reference),
+  KEY idx_data_backups_company_run (company_id, last_run),
+  CONSTRAINT fk_data_backups_company FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE document_templates (

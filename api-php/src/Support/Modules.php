@@ -23,6 +23,23 @@ final class Modules
         'reporting',
     ];
 
+    public const LABELS = [
+        'configuration' => 'Configuration',
+        'utilisateurs' => 'Utilisateurs',
+        'clients' => 'Clients',
+        'devis-commandes' => 'Devis & commandes',
+        'prepress' => 'Prépresse',
+        'planification' => 'Planification',
+        'achats' => 'Achats',
+        'stocks' => 'Stocks',
+        'machines' => 'Machines',
+        'livraisons' => 'Livraisons',
+        'facturation' => 'Facturation',
+        'ressources-humaines' => 'Ressources humaines',
+        'communication' => 'Communication',
+        'reporting' => 'Reporting',
+    ];
+
     public const DEFAULT_ROLES = [
         'Administrateur' => 'full',
         'Commercial' => ['clients', 'devis-commandes', 'facturation', 'communication'],

@@ -129,4 +129,91 @@ final class RecordMapper
     {
         return $prefix . '-' . substr((string) time(), -5);
     }
+
+    /** @param array<string, mixed> $row */
+    public static function audit(array $row): array
+    {
+        $action = (string) ($row['action'] ?? '');
+        $moduleId = (string) ($row['module_id'] ?? '');
+        $created = (string) ($row['created_at'] ?? '');
+        $id = str_replace('-', '', (string) ($row['id'] ?? ''));
+        return [
+            'id' => $row['id'],
+            'name' => self::auditActionLabel($action),
+            'reference' => 'AUD-' . strtoupper(substr($id, 0, 8)),
+            'status' => self::auditStatus($action),
+            'updatedAt' => Dates::display($created ?: null),
+            'author' => (string) ($row['author_name'] ?? 'Système'),
+            'module' => Modules::LABELS[$moduleId] ?? ($moduleId !== '' ? $moduleId : 'Système'),
+            'occurredAt' => $created !== '' ? substr($created, 0, 10) : '',
+            'detail' => (string) ($row['detail'] ?? ''),
+        ];
+    }
+
+    /** @param array<string, mixed> $row */
+    public static function backup(array $row): array
+    {
+        $lastRun = $row['last_run'] ?? null;
+        return [
+            'id' => $row['id'],
+            'name' => $row['name'],
+            'reference' => $row['reference'],
+            'status' => $row['status'],
+            'updatedAt' => Dates::display($row['updated_at'] ?? null),
+            'frequency' => (string) ($row['frequency'] ?? ''),
+            'size' => (string) ($row['size'] ?? ''),
+            'location' => (string) ($row['location'] ?? ''),
+            'lastRun' => $lastRun ? substr((string) $lastRun, 0, 10) : '',
+        ];
+    }
+
+    private static function auditActionLabel(string $action): string
+    {
+        return match ($action) {
+            'auth.login' => 'Connexion',
+            'auth.logout' => 'Déconnexion',
+            'user.create' => 'Utilisateur créé',
+            'user.update' => 'Utilisateur modifié',
+            'user.delete' => 'Utilisateur supprimé',
+            'role.create' => 'Rôle créé',
+            'role.update' => 'Rôle modifié',
+            'role.delete' => 'Rôle supprimé',
+            'backup.create' => 'Sauvegarde lancée',
+            'backup.delete' => 'Sauvegarde supprimée',
+            'company.created' => 'Entreprise créée',
+            default => $action !== '' ? $action : 'Action',
+        };
+    }
+
+    private static function auditStatus(string $action): string
+    {
+        $action = strtolower($action);
+        if (str_contains($action, 'delete') || str_contains($action, 'fail') || str_contains($action, 'suspend')) {
+            return 'Critique';
+        }
+        if (str_contains($action, 'create') || str_contains($action, 'update') || str_contains($action, 'save') || str_contains($action, 'reset')) {
+            return 'Modification';
+        }
+        return 'Info';
+    }
+
+    /** @param array<string, mixed> $row */
+    public static function user(array $row): array
+    {
+        $lastLogin = $row['last_login_at'] ?? null;
+        return [
+            'id' => $row['id'],
+            'name' => $row['name'],
+            'reference' => $row['reference'],
+            'status' => $row['status'],
+            'updatedAt' => Dates::display($row['updated_at'] ?? null),
+            'email' => (string) ($row['email'] ?? ''),
+            'phone' => (string) ($row['phone'] ?? ''),
+            'address' => (string) ($row['address'] ?? ''),
+            'role' => (string) ($row['role_name'] ?? ''),
+            'roleId' => $row['role_id'],
+            'password' => '1',
+            'lastLogin' => $lastLogin ? substr((string) $lastLogin, 0, 10) : '',
+        ];
+    }
 }

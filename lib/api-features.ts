@@ -3,6 +3,8 @@ export const RECORD_PATH: Record<string, string> = {
   catalogue: "/catalogue-products",
   postes: "/workstations",
   "modeles-documents": "/document-templates",
+  "roles-permissions": "/users",
+  sauvegardes: "/backups",
 };
 
 export function isApiFeature(featureId: string) {

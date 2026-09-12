@@ -8,14 +8,18 @@ use NanoPrint\Auth\AuthContext;
 use NanoPrint\Auth\AuthService;
 use NanoPrint\Auth\SessionService;
 use NanoPrint\Config\Database;
+use NanoPrint\Services\AuditService;
+use NanoPrint\Services\BackupService;
 use NanoPrint\Services\BootstrapService;
 use NanoPrint\Services\CatalogueService;
 use NanoPrint\Services\CompanyService;
 use NanoPrint\Services\DocumentService;
 use NanoPrint\Services\LookupService;
 use NanoPrint\Services\MaterialService;
+use NanoPrint\Services\RoleService;
 use NanoPrint\Services\SettingsService;
 use NanoPrint\Services\TaxService;
+use NanoPrint\Services\UserService;
 use NanoPrint\Services\WorkstationService;
 use NanoPrint\Support\AuditLogger;
 use PDO;
@@ -33,6 +37,10 @@ final class App
     private WorkstationService $workstations;
     private CatalogueService $catalogue;
     private DocumentService $documents;
+    private UserService $users;
+    private RoleService $roles;
+    private AuditService $audits;
+    private BackupService $backups;
     private BootstrapService $bootstrap;
 
     public function __construct()
@@ -49,14 +57,21 @@ final class App
         $this->workstations = new WorkstationService($this->pdo, $audit, $this->lookups);
         $this->catalogue = new CatalogueService($this->pdo, $audit, $this->lookups);
         $this->documents = new DocumentService($this->pdo, $audit);
+        $this->users = new UserService($this->pdo, $audit);
+        $this->roles = new RoleService($this->pdo, $audit);
+        $this->audits = new AuditService($this->pdo);
+        $this->backups = new BackupService($this->pdo, $audit);
         $this->bootstrap = new BootstrapService(
-            $this->pdo,
             $this->settings,
             $this->materials,
             $this->catalogue,
             $this->workstations,
             $this->documents,
             $this->lookups,
+            $this->users,
+            $this->roles,
+            $this->audits,
+            $this->backups,
         );
         $this->router = new Router();
         $this->routes();
@@ -110,6 +125,38 @@ final class App
         $r->add('GET', '/bootstrap', function (Request $req, AuthContext $auth): array {
             return $this->bootstrap->load($auth);
         }, true, $cfg, 'read');
+
+        $usr = 'utilisateurs';
+        $r->add('GET', '/users', fn(Request $req, AuthContext $auth) => $this->users->list($auth), true, $usr, 'read');
+        $r->add('POST', '/users', function (Request $req, AuthContext $auth): array {
+            return [...$this->users->create($auth, $req->body, $req->ip), '__status' => 201];
+        }, true, $usr, 'create');
+        $r->add('PATCH', '/users/{id}', function (Request $req, AuthContext $auth): array {
+            return $this->users->update($auth, $req->string('id'), $req->body, $req->ip);
+        }, true, $usr, 'update');
+        $r->add('DELETE', '/users/{id}', function (Request $req, AuthContext $auth): array {
+            $this->users->delete($auth, $req->string('id'), $req->ip);
+            return ['ok' => true];
+        }, true, $usr, 'delete');
+
+        $r->add('GET', '/roles', fn(Request $req, AuthContext $auth) => $this->roles->list($auth), true, $usr, 'read');
+        $r->add('PUT', '/roles/{id}', function (Request $req, AuthContext $auth): array {
+            return $this->roles->save($auth, [...$req->body, 'id' => $req->string('id')], $req->ip);
+        }, true, $usr, 'update');
+        $r->add('DELETE', '/roles/{id}', function (Request $req, AuthContext $auth): array {
+            return $this->roles->delete($auth, $req->string('id'), $req->ip);
+        }, true, $usr, 'delete');
+
+        $r->add('GET', '/audit-logs', fn(Request $req, AuthContext $auth) => $this->audits->list($auth), true, $usr, 'read');
+
+        $r->add('GET', '/backups', fn(Request $req, AuthContext $auth) => $this->backups->list($auth), true, $usr, 'read');
+        $r->add('POST', '/backups', function (Request $req, AuthContext $auth): array {
+            return [...$this->backups->create($auth, $req->body, $req->ip), '__status' => 201];
+        }, true, $usr, 'create');
+        $r->add('DELETE', '/backups/{id}', function (Request $req, AuthContext $auth): array {
+            $this->backups->delete($auth, $req->string('id'), $req->ip);
+            return ['ok' => true];
+        }, true, $usr, 'delete');
 
         $r->add('POST', '/companies', function (Request $req, AuthContext $auth): array {
             $created = $this->companies->create(

@@ -119,6 +119,20 @@ export async function renameLookupAction(kind: string, from: string, to: string)
   return result.name;
 }
 
+export async function saveRoleAction(role: AccessRole) {
+  return phpFetch<AccessRole>(`/roles/${role.id}`, {
+    method: "PUT",
+    body: JSON.stringify(role),
+  });
+}
+
+export async function deleteRoleAction(id: string) {
+  return phpFetch<{
+    accessRoles: AccessRole[];
+    fallback: { id: string; name: string };
+  }>(`/roles/${id}`, { method: "DELETE" });
+}
+
 export async function deleteLookupAction(kind: string, name: string) {
   const result = await phpFetch<{ name: string }>(`/${kind}`, {
     method: "DELETE",
