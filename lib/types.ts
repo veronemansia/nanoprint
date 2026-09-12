@@ -4,8 +4,10 @@ export type MockUser = {
   id: string;
   name: string;
   email: string;
-  role: Role;
+  role: string;
   initials: string;
+  roleId?: string;
+  companyId?: string;
 };
 
 export type ModuleId =

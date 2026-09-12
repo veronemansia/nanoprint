@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "php:serve": "php -S 127.0.0.1:8088 -t api-php/public",
+    "php:install": "php api-php/bin/install.php"
   },
   "dependencies": {
     "lucide-react": "^1.40.0",

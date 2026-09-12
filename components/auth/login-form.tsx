@@ -5,16 +5,12 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { useApp } from "@/components/providers/app-provider";
-import type { Role } from "@/lib/types";
-
-const roles: Role[] = ["Administrateur", "Commercial", "Opérateur", "Comptable"];
 
 export function LoginForm() {
   const router = useRouter();
   const { login, ready, user, t } = useApp();
-  const [email, setEmail] = useState("awa.diop@nanoprint.demo");
-  const [password, setPassword] = useState("demo2026");
-  const [role, setRole] = useState<Role>("Administrateur");
+  const [email, setEmail] = useState("contact@nanoprint.sn");
+  const [password, setPassword] = useState("123456");
   const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -29,19 +25,18 @@ export function LoginForm() {
     const loginSchema = z.object({
       email: z.string().email(t("login.emailInvalid", "Saisissez une adresse e-mail valide.")),
       password: z.string().min(6, t("login.passwordShort", "Le mot de passe doit contenir au moins 6 caractères.")),
-      role: z.enum(["Administrateur", "Commercial", "Opérateur", "Comptable"]),
     });
-    const result = loginSchema.safeParse({ email, password, role });
+    const result = loginSchema.safeParse({ email, password });
     if (!result.success) {
       setError(result.error.issues[0]?.message ?? t("login.checkFields", "Vérifiez les informations saisies."));
       return;
     }
     setPending(true);
     try {
-      await login(result.data.email, result.data.role);
+      await login(result.data.email, result.data.password);
       router.push("/admin");
-    } catch {
-      setError(t("login.failed", "La connexion simulée a échoué. Réessayez."));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("login.failed", "La connexion a échoué. Réessayez."));
     } finally {
       setPending(false);
     }
@@ -74,20 +69,11 @@ export function LoginForm() {
         </span>
       </label>
 
-      <label className="field">
-        <span>{t("login.profile", "Profil de démonstration")}</span>
-        <select value={role} onChange={(event) => setRole(event.target.value as Role)}>
-          {roles.map((item) => (
-            <option key={item} value={item}>{t(`role.${item}`, item)}</option>
-          ))}
-        </select>
-      </label>
-
       {error && <div className="form-error" role="alert">{error}</div>}
 
       <div className="login-meta">
         <label><input type="checkbox" defaultChecked /> <span>{t("login.keepSession", "Garder ma session locale")}</span></label>
-        <button type="button" onClick={() => setError(t("login.forgotHint", "En mode démo, saisissez simplement un nouveau mot de passe de 6 caractères minimum."))}>{t("login.forgot", "Mot de passe oublié ?")}</button>
+        <button type="button" onClick={() => setError(t("login.forgotHint", "Compte entreprise : contact@nanoprint.sn / 123456. Administrateur : awa.diop@nanoprint.demo / demo2026."))}>{t("login.forgot", "Mot de passe oublié ?")}</button>
       </div>
 
       <button className="button button-primary login-submit" type="submit" disabled={pending || !ready}>
@@ -96,7 +82,7 @@ export function LoginForm() {
 
       <div className="demo-note">
         <ShieldCheck size={18} />
-        <p><strong>{t("login.demoTitle", "Environnement de démonstration")}</strong><span>{t("login.demoText", "Aucune donnée sensible n’est transmise. Les changements restent dans ce navigateur.")}</span></p>
+        <p><strong>{t("login.demoTitle", "Comptes de démonstration")}</strong><span>{t("login.demoText", "Entreprise : contact@nanoprint.sn / 123456 · Admin : awa.diop@nanoprint.demo / demo2026.")}</span></p>
       </div>
     </form>
   );

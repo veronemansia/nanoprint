@@ -55,7 +55,21 @@ import {
 } from "@/lib/supply";
 import { applyStockWithdraw, withdrawBlockReason, type StockKind } from "@/lib/stock";
 import { defaultLocale, LOCALE_STORAGE, isLocale, localizeKnown, readStoredLocale, translate, type Locale } from "@/lib/i18n";
-import type { MockRecord, MockUser, Role, Toast } from "@/lib/types";
+import type { MockRecord, MockUser, Toast } from "@/lib/types";
+import { loginAction, logoutAction, markHybridSessionAction } from "@/app/actions/auth";
+import {
+  addLookupAction,
+  bootstrapAction,
+  createRecordAction,
+  deleteLookupAction,
+  deleteRecordAction,
+  renameLookupAction,
+  resetSettingsAction,
+  resetTaxesAction,
+  saveSettingsAction,
+  updateRecordAction,
+} from "@/app/actions/data";
+import { isApiFeature } from "@/lib/api-features";
 
 type AppContextValue = {
   ready: boolean;
@@ -86,7 +100,8 @@ type AppContextValue = {
   resetSettings: () => void;
   saveRole: (role: AccessRole) => Promise<void>;
   deleteRole: (id: string) => Promise<void>;
-  login: (email: string, role: Role) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  apiLive: boolean;
   logout: () => void;
   createRecord: (featureId: string, values: Record<string, string | number>) => Promise<MockRecord>;
   updateRecord: (featureId: string, id: string, values: Record<string, string | number>) => Promise<void>;
@@ -133,6 +148,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [accessRoles, setAccessRoles] = useState<AccessRole[]>(defaultAccessRoles);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+  const [apiLive, setApiLive] = useState(false);
 
   useEffect(() => {
     setLocaleState(readStoredLocale());
@@ -160,45 +176,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const hydrationTask = window.setTimeout(() => {
-      try {
-        const savedUser = localStorage.getItem(STORAGE_USER);
-        const savedRecords = localStorage.getItem(STORAGE_DATA);
-        if (savedUser) setUser(JSON.parse(savedUser) as MockUser);
-        if (savedRecords) {
-          const parsed = JSON.parse(savedRecords) as {
-            records?: Record<string, MockRecord[]>;
-            catalogueFamilies?: string[];
-            workshops?: string[];
-            clientSectors?: string[];
-            materialTypes?: string[];
-            materialUnits?: string[];
-            settings?: unknown;
-            accessRoles?: unknown;
-          };
-          if (parsed.records) setRecords({ ...mockRecords, ...parsed.records });
-          if (parsed.catalogueFamilies?.length) {
-            setCatalogueFamilies([...new Set([...defaultCatalogueFamilies, ...parsed.catalogueFamilies])]);
+      void (async () => {
+        try {
+          const boot = await bootstrapAction();
+          if (boot) {
+            setApiLive(true);
+            setUser(boot.user);
+            setSettings(normalizeCompanySettings(boot.settings));
+            setAccessRoles(normalizeAccessRoles(boot.accessRoles));
+            setCatalogueFamilies(boot.catalogueFamilies.length ? boot.catalogueFamilies : defaultCatalogueFamilies);
+            setWorkshops(boot.workshops.length ? boot.workshops : defaultWorkshops);
+            setMaterialTypes(boot.materialTypes.length ? boot.materialTypes : defaultMaterialTypes);
+            setMaterialUnits(boot.materialUnits.length ? boot.materialUnits : defaultMaterialUnits);
+            const savedRecords = localStorage.getItem(STORAGE_DATA);
+            const parsed = savedRecords ? JSON.parse(savedRecords) as { records?: Record<string, MockRecord[]>; clientSectors?: string[] } : {};
+            setRecords({ ...mockRecords, ...(parsed.records ?? {}), ...boot.records });
+            const storedSectors = parsed.clientSectors ?? [];
+            const fromClients = (parsed.records?.["fiches-clients"] ?? mockRecords["fiches-clients"]).map((item) => String(item.sector || "")).filter(Boolean);
+            setClientSectors([...new Set([...DEFAULT_CLIENT_SECTORS, ...storedSectors, ...fromClients])]);
+            localStorage.setItem(STORAGE_USER, JSON.stringify(boot.user));
+            return;
           }
-          const storedWorkshops = parsed.workshops ?? [];
-          const fromPostes = (parsed.records?.postes ?? mockRecords.postes).map((item) => String(item.workshop || "")).filter(Boolean);
-          setWorkshops([...new Set([...defaultWorkshops, ...storedWorkshops, ...fromPostes])]);
-          const storedSectors = parsed.clientSectors ?? [];
-          const fromClients = (parsed.records?.["fiches-clients"] ?? mockRecords["fiches-clients"]).map((item) => String(item.sector || "")).filter(Boolean);
-          setClientSectors([...new Set([...DEFAULT_CLIENT_SECTORS, ...storedSectors, ...fromClients])]);
-          const materials = parsed.records?.matieres ?? mockRecords.matieres ?? [];
-          const fromMaterialTypes = materials.map((item) => String(item.type || "")).filter(Boolean);
-          const fromMaterialUnits = materials.map((item) => String(item.unit || "")).filter(Boolean);
-          setMaterialTypes([...new Set([...defaultMaterialTypes, ...(parsed.materialTypes ?? []), ...fromMaterialTypes])]);
-          setMaterialUnits([...new Set([...defaultMaterialUnits, ...(parsed.materialUnits ?? []), ...fromMaterialUnits])]);
-          if (parsed.settings) setSettings(normalizeCompanySettings(parsed.settings));
-          if (parsed.accessRoles) setAccessRoles(normalizeAccessRoles(parsed.accessRoles));
+          const savedRecords = localStorage.getItem(STORAGE_DATA);
+          if (savedRecords) {
+            const parsed = JSON.parse(savedRecords) as {
+              records?: Record<string, MockRecord[]>;
+              catalogueFamilies?: string[];
+              workshops?: string[];
+              clientSectors?: string[];
+              materialTypes?: string[];
+              materialUnits?: string[];
+              settings?: unknown;
+              accessRoles?: unknown;
+            };
+            if (parsed.records) setRecords({ ...mockRecords, ...parsed.records });
+            if (parsed.catalogueFamilies?.length) {
+              setCatalogueFamilies([...new Set([...defaultCatalogueFamilies, ...parsed.catalogueFamilies])]);
+            }
+            const storedWorkshops = parsed.workshops ?? [];
+            const fromPostes = (parsed.records?.postes ?? mockRecords.postes).map((item) => String(item.workshop || "")).filter(Boolean);
+            setWorkshops([...new Set([...defaultWorkshops, ...storedWorkshops, ...fromPostes])]);
+            const storedSectors = parsed.clientSectors ?? [];
+            const fromClients = (parsed.records?.["fiches-clients"] ?? mockRecords["fiches-clients"]).map((item) => String(item.sector || "")).filter(Boolean);
+            setClientSectors([...new Set([...DEFAULT_CLIENT_SECTORS, ...storedSectors, ...fromClients])]);
+            const materials = parsed.records?.matieres ?? mockRecords.matieres ?? [];
+            const fromMaterialTypes = materials.map((item) => String(item.type || "")).filter(Boolean);
+            const fromMaterialUnits = materials.map((item) => String(item.unit || "")).filter(Boolean);
+            setMaterialTypes([...new Set([...defaultMaterialTypes, ...(parsed.materialTypes ?? []), ...fromMaterialTypes])]);
+            setMaterialUnits([...new Set([...defaultMaterialUnits, ...(parsed.materialUnits ?? []), ...fromMaterialUnits])]);
+            if (parsed.settings) setSettings(normalizeCompanySettings(parsed.settings));
+            if (parsed.accessRoles) setAccessRoles(normalizeAccessRoles(parsed.accessRoles));
+          }
+        } catch {
+          localStorage.removeItem(STORAGE_USER);
+          localStorage.removeItem(STORAGE_DATA);
+        } finally {
+          setReady(true);
         }
-      } catch {
-        localStorage.removeItem(STORAGE_USER);
-        localStorage.removeItem(STORAGE_DATA);
-      } finally {
-        setReady(true);
-      }
+      })();
     }, 0);
     return () => window.clearTimeout(hydrationTask);
   }, []);
@@ -213,31 +248,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 4300);
   }, [locale]);
 
-  const login = useCallback(async (email: string, role: Role) => {
-    await wait(900);
-    const name = titleCaseEmail(email);
-    const nextUser: MockUser = {
-      id: crypto.randomUUID(),
-      name,
-      email,
-      role,
-      initials: name.split(" ").slice(0, 2).map((part) => part[0]).join("").toUpperCase(),
-    };
-    localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));
-    setUser(nextUser);
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const nextUser = await loginAction(email, password);
+      const boot = await bootstrapAction();
+      if (boot) {
+        setApiLive(true);
+        setUser(boot.user);
+        setSettings(normalizeCompanySettings(boot.settings));
+        setAccessRoles(normalizeAccessRoles(boot.accessRoles));
+        setCatalogueFamilies(boot.catalogueFamilies.length ? boot.catalogueFamilies : defaultCatalogueFamilies);
+        setWorkshops(boot.workshops.length ? boot.workshops : defaultWorkshops);
+        setMaterialTypes(boot.materialTypes.length ? boot.materialTypes : defaultMaterialTypes);
+        setMaterialUnits(boot.materialUnits.length ? boot.materialUnits : defaultMaterialUnits);
+        setRecords((current) => ({ ...current, ...boot.records }));
+        localStorage.setItem(STORAGE_USER, JSON.stringify(boot.user));
+        return;
+      }
+      localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));
+      setUser(nextUser);
+      setApiLive(true);
+    } catch (error) {
+      if (process.env.NEXT_PUBLIC_API_MODE === "hybrid") {
+        await wait(400);
+        const name = titleCaseEmail(email);
+        const nextUser: MockUser = {
+          id: crypto.randomUUID(),
+          name,
+          email,
+          role: "Administrateur",
+          initials: name.split(" ").slice(0, 2).map((part) => part[0]).join("").toUpperCase(),
+        };
+        localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));
+        setUser(nextUser);
+        setApiLive(false);
+        void markHybridSessionAction();
+        return;
+      }
+      throw error;
+    }
   }, []);
 
   const addCatalogueFamily = useCallback((name: string) => {
     const label = name.trim();
     if (!label) return;
     setCatalogueFamilies((current) => current.includes(label) ? current : [...current, label]);
-  }, []);
+    if (apiLive) void addLookupAction("catalogue-families", label).catch(() => undefined);
+  }, [apiLive]);
 
   const addWorkshop = useCallback((name: string) => {
     const label = name.trim();
     if (!label) return;
     setWorkshops((current) => current.includes(label) ? current : [...current, label]);
-  }, []);
+    if (apiLive) void addLookupAction("workshops", label).catch(() => undefined);
+  }, [apiLive]);
 
   const renameWorkshop = useCallback((from: string, to: string) => {
     const next = to.trim();
@@ -253,8 +317,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.workshop) === from ? { ...record, workshop: next } : record,
       ),
     }));
+    if (apiLive) void renameLookupAction("workshops", from, next).catch(() => undefined);
     return next;
-  }, []);
+  }, [apiLive]);
 
   const deleteWorkshop = useCallback((name: string) => {
     const remaining = workshops.filter((item) => item !== name);
@@ -267,14 +332,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.workshop) === name ? { ...record, workshop: fallback } : record,
       ),
     }));
+    if (apiLive) void deleteLookupAction("workshops", name).catch(() => undefined);
     return fallback;
-  }, [workshops]);
+  }, [workshops, apiLive]);
 
   const addMaterialType = useCallback((name: string) => {
     const label = name.trim();
     if (!label) return;
     setMaterialTypes((current) => current.includes(label) ? current : [...current, label]);
-  }, []);
+    if (apiLive) void addLookupAction("material-types", label).catch(() => undefined);
+  }, [apiLive]);
 
   const renameMaterialType = useCallback((from: string, to: string) => {
     const next = to.trim();
@@ -290,8 +357,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.type) === from ? { ...record, type: next } : record,
       ),
     }));
+    if (apiLive) void renameLookupAction("material-types", from, next).catch(() => undefined);
     return next;
-  }, []);
+  }, [apiLive]);
 
   const deleteMaterialType = useCallback((name: string) => {
     const remaining = materialTypes.filter((item) => item !== name);
@@ -304,14 +372,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.type) === name ? { ...record, type: fallback } : record,
       ),
     }));
+    if (apiLive) void deleteLookupAction("material-types", name).catch(() => undefined);
     return fallback;
-  }, [materialTypes]);
+  }, [materialTypes, apiLive]);
 
   const addMaterialUnit = useCallback((name: string) => {
     const label = name.trim();
     if (!label) return;
     setMaterialUnits((current) => current.includes(label) ? current : [...current, label]);
-  }, []);
+    if (apiLive) void addLookupAction("material-units", label).catch(() => undefined);
+  }, [apiLive]);
 
   const renameMaterialUnit = useCallback((from: string, to: string) => {
     const next = to.trim();
@@ -327,8 +397,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.unit) === from ? { ...record, unit: next } : record,
       ),
     }));
+    if (apiLive) void renameLookupAction("material-units", from, next).catch(() => undefined);
     return next;
-  }, []);
+  }, [apiLive]);
 
   const deleteMaterialUnit = useCallback((name: string) => {
     const remaining = materialUnits.filter((item) => item !== name);
@@ -341,8 +412,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.unit) === name ? { ...record, unit: fallback } : record,
       ),
     }));
+    if (apiLive) void deleteLookupAction("material-units", name).catch(() => undefined);
     return fallback;
-  }, [materialUnits]);
+  }, [materialUnits, apiLive]);
 
   const addClientSector = useCallback((name: string) => {
     const label = name.trim();
@@ -393,9 +465,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_USER);
     setUser(null);
+    setApiLive(false);
+    void logoutAction();
   }, []);
 
   const createRecord = useCallback(async (featureId: string, values: Record<string, string | number>) => {
+    const target = featureId === "tarifs" ? "catalogue" : featureId;
+    if (apiLive && isApiFeature(featureId)) {
+      try {
+        const next = await createRecordAction(target, values);
+        setRecords((current) => ({ ...current, [target]: [next, ...(current[target] ?? [])] }));
+        notify("Enregistrement créé", t("toast.added", "{ref} a été ajouté.", { ref: next.reference }));
+        return next;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Création impossible.", "error");
+        throw error;
+      }
+    }
     await wait();
     const prefix = featureId.slice(0, 3).toUpperCase();
     const next: MockRecord = {
@@ -409,9 +495,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setRecords((current) => ({ ...current, [featureId]: [next, ...(current[featureId] ?? [])] }));
     notify("Enregistrement créé", t("toast.added", "{ref} a été ajouté.", { ref: next.reference }));
     return next;
-  }, [notify, t]);
+  }, [notify, t, apiLive]);
 
   const updateRecord = useCallback(async (featureId: string, id: string, values: Record<string, string | number>) => {
+    const target = featureId === "tarifs" ? "catalogue" : featureId;
+    if (apiLive && isApiFeature(featureId)) {
+      try {
+        const updated = await updateRecordAction(target, id, values);
+        setRecords((current) => ({
+          ...current,
+          [target]: (current[target] ?? []).map((record) => (record.id === id ? { ...record, ...updated } : record)),
+        }));
+        notify("Modifications enregistrées", "La fiche a été mise à jour.");
+        return;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Mise à jour impossible.", "error");
+        throw error;
+      }
+    }
     await wait();
     setRecords((current) => {
       const previous = (current[featureId] ?? []).find((record) => record.id === id);
@@ -435,16 +536,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
     notify("Modifications enregistrées", "La fiche a été mise à jour.");
-  }, [notify]);
+  }, [notify, apiLive]);
 
   const deleteRecord = useCallback(async (featureId: string, id: string) => {
+    const target = featureId === "tarifs" ? "catalogue" : featureId;
+    if (apiLive && isApiFeature(featureId)) {
+      try {
+        await deleteRecordAction(target, id);
+        setRecords((current) => ({
+          ...current,
+          [target]: (current[target] ?? []).filter((record) => record.id !== id),
+        }));
+        notify("Élément supprimé", "La suppression a été appliquée.", "info");
+        return;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Suppression impossible.", "error");
+        throw error;
+      }
+    }
     await wait(450);
     setRecords((current) => ({
       ...current,
       [featureId]: (current[featureId] ?? []).filter((record) => record.id !== id),
     }));
     notify("Élément supprimé", "La suppression a été appliquée aux données locales.", "info");
-  }, [notify]);
+  }, [notify, apiLive]);
 
   const convertCalculatorQuote = useCallback(async (quoteId: string) => {
     const safeId = String(quoteId || "").trim();
@@ -892,16 +1008,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [records, notify, t, locale]);
 
   const saveSettings = useCallback(async (next: CompanySettings) => {
+    if (apiLive) {
+      try {
+        const saved = await saveSettingsAction(next);
+        setSettings(normalizeCompanySettings(saved));
+        notify("Paramètres enregistrés", "Les règles générales de l’entreprise ont été mises à jour.");
+        return;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Enregistrement impossible.", "error");
+        throw error;
+      }
+    }
     await wait(350);
     const normalized = normalizeCompanySettings(next);
     setSettings(normalized);
     notify("Paramètres enregistrés", "Les règles générales de l’entreprise ont été mises à jour.");
-  }, [notify]);
+  }, [notify, apiLive]);
 
   const resetSettings = useCallback(() => {
+    if (apiLive) {
+      void resetSettingsAction().then((saved) => {
+        setSettings(normalizeCompanySettings(saved));
+        notify("Paramètres restaurés", "Les informations NanoPrint de démonstration ont été rétablies.", "info");
+      });
+      return;
+    }
     setSettings(defaultCompanySettings);
     notify("Paramètres restaurés", "Les informations NanoPrint de démonstration ont été rétablies.", "info");
-  }, [notify]);
+  }, [notify, apiLive]);
 
   const saveRole = useCallback(async (role: AccessRole) => {
     await wait(350);
@@ -936,11 +1070,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const resetFeature = useCallback((featureId: string) => {
     if (featureId === "parametres-generaux") {
+      if (apiLive) {
+        void resetSettingsAction().then((saved) => {
+          setSettings(normalizeCompanySettings(saved));
+          notify("Paramètres restaurés", "Les informations NanoPrint de démonstration ont été rétablies.", "info");
+        });
+        return;
+      }
       setSettings(defaultCompanySettings);
       notify("Paramètres restaurés", "Les informations NanoPrint de démonstration ont été rétablies.", "info");
       return;
     }
     if (featureId === "taxes") {
+      if (apiLive) {
+        void resetTaxesAction().then((taxes) => {
+          setSettings((current) => ({ ...current, taxes }));
+          notify("Taxes restaurées", "Les taxes de démonstration ont été rétablies.", "info");
+        });
+        return;
+      }
       setSettings((current) => ({ ...current, taxes: defaultCompanySettings.taxes }));
       notify("Taxes restaurées", "Les taxes de démonstration ont été rétablies.", "info");
       return;
@@ -986,11 +1134,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setRecords((current) => ({ ...current, [featureId]: mockRecords[featureId] ?? [] }));
     notify("Données restaurées", "Le jeu de démonstration de cet écran a été rétabli.", "info");
-  }, [notify]);
+  }, [notify, apiLive]);
 
   const value = useMemo(
-    () => ({ ready, user, records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles, addCatalogueFamily, addWorkshop, renameWorkshop, deleteWorkshop, addMaterialType, renameMaterialType, deleteMaterialType, addMaterialUnit, renameMaterialUnit, deleteMaterialUnit, addClientSector, renameClientSector, deleteClientSector, assignClientsToSector, saveSettings, resetSettings, saveRole, deleteRole, login, logout, createRecord, updateRecord, deleteRecord, convertCalculatorQuote, applyOrderAvenant, issueInvoice, recordDepositPayment, uploadOrderFiles, replaceOrderFile, deleteOrderFile, validateSupply, deleteSupply, withdrawStock, resetFeature, notify, locale, setLocale, t, te }),
-    [ready, user, records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles, addCatalogueFamily, addWorkshop, renameWorkshop, deleteWorkshop, addMaterialType, renameMaterialType, deleteMaterialType, addMaterialUnit, renameMaterialUnit, deleteMaterialUnit, addClientSector, renameClientSector, deleteClientSector, assignClientsToSector, saveSettings, resetSettings, saveRole, deleteRole, login, logout, createRecord, updateRecord, deleteRecord, convertCalculatorQuote, applyOrderAvenant, issueInvoice, recordDepositPayment, uploadOrderFiles, replaceOrderFile, deleteOrderFile, validateSupply, deleteSupply, withdrawStock, resetFeature, notify, locale, setLocale, t, te],
+    () => ({ ready, user, records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles, addCatalogueFamily, addWorkshop, renameWorkshop, deleteWorkshop, addMaterialType, renameMaterialType, deleteMaterialType, addMaterialUnit, renameMaterialUnit, deleteMaterialUnit, addClientSector, renameClientSector, deleteClientSector, assignClientsToSector, saveSettings, resetSettings, saveRole, deleteRole, login, logout, createRecord, updateRecord, deleteRecord, convertCalculatorQuote, applyOrderAvenant, issueInvoice, recordDepositPayment, uploadOrderFiles, replaceOrderFile, deleteOrderFile, validateSupply, deleteSupply, withdrawStock, resetFeature, notify, locale, setLocale, t, te, apiLive }),
+    [ready, user, records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles, addCatalogueFamily, addWorkshop, renameWorkshop, deleteWorkshop, addMaterialType, renameMaterialType, deleteMaterialType, addMaterialUnit, renameMaterialUnit, deleteMaterialUnit, addClientSector, renameClientSector, deleteClientSector, assignClientsToSector, saveSettings, resetSettings, saveRole, deleteRole, login, logout, createRecord, updateRecord, deleteRecord, convertCalculatorQuote, applyOrderAvenant, issueInvoice, recordDepositPayment, uploadOrderFiles, replaceOrderFile, deleteOrderFile, validateSupply, deleteSupply, withdrawStock, resetFeature, notify, locale, setLocale, t, te, apiLive],
   );
 
   return (
