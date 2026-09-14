@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Filter, X } from "lucide-react";
+import { listClientHistoryAction } from "@/app/actions/data";
+import { useApp } from "@/components/providers/app-provider";
 import { clientKindOf } from "@/components/modules/client-form";
 import { formatAmount } from "@/lib/company-settings";
 import {
@@ -11,13 +13,14 @@ import {
   flattenHistory,
   formatHistoryDate,
   historyForClient,
+  historyGroupsFromPayload,
   historyItemFields,
   historyLineDescription,
   historyTotal,
+  type ClientHistoryPayload,
   type HistoryEntry,
   type HistoryKind,
 } from "@/lib/client-history";
-import { useApp } from "@/components/providers/app-provider";
 import type { CompanySettings } from "@/lib/company-settings";
 import type { MockRecord } from "@/lib/types";
 
@@ -47,8 +50,34 @@ export function ClientHistoryDrawer({
   client: MockRecord;
   onClose: () => void;
 }) {
-  const { records, settings, te } = useApp();
-  const groups = useMemo(() => historyForClient(records, client), [records, client]);
+  const { records, settings, te, apiLive } = useApp();
+  const localGroups = useMemo(() => historyForClient(records, client), [records, client]);
+  const [livePayload, setLivePayload] = useState<ClientHistoryPayload | null>(null);
+
+  useEffect(() => {
+    const clientId = String(client.id || "").trim();
+    if (!apiLive || !clientId) {
+      setLivePayload(null);
+      return;
+    }
+    let cancelled = false;
+    setLivePayload(null);
+    void listClientHistoryAction(clientId)
+      .then((payload) => {
+        if (!cancelled) setLivePayload(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setLivePayload(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiLive, client.id]);
+
+  const groups = useMemo(
+    () => (livePayload ? historyGroupsFromPayload(livePayload) : localGroups),
+    [livePayload, localGroups],
+  );
   const [type, setType] = useState<HistoryKind | "all">("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");

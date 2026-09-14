@@ -238,7 +238,7 @@ function threeDigits(value: number): string {
 
 export function amountInWords(value: number) {
   const amount = Math.max(0, Math.round(Number(value) || 0));
-  if (!amount) return "zéro franc CFA";
+  if (!amount) return "zéro";
   const billion = Math.floor(amount / 1_000_000_000);
   const million = Math.floor((amount % 1_000_000_000) / 1_000_000);
   const thousand = Math.floor((amount % 1_000_000) / 1000);
@@ -248,10 +248,9 @@ export function amountInWords(value: number) {
   if (million) parts.push(million === 1 ? "un million" : `${threeDigits(million)} millions`);
   if (thousand) parts.push(thousand === 1 ? "mille" : `${threeDigits(thousand)} mille`);
   if (rest) parts.push(threeDigits(rest));
-  const text = parts.join(" ").replace(/\s+/g, " ").trim();
-  return `${text} franc${amount > 1 ? "s" : ""} CFA`;
+  return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
 export function moneyLabel(amount: number, settings: CompanySettings) {
-  return `${formatAmount(amount, settings)} F CFA`;
+  return formatAmount(amount, settings);
 }

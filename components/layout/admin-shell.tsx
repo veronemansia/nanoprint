@@ -80,7 +80,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             ) : (
               <span className="brand-mark"><i /><i /><i /><i /></span>
             )}
-            <span><strong>{settings.tradeName || "NanoPrint"}</strong><small>{settings.city || "Atelier de gestion"}</small></span>
+            <span><strong>{settings.tradeName || "NanoPrint"}</strong></span>
           </Link>
           <button className="mobile-close" aria-label={t("common.closeMenu", "Fermer le menu")} onClick={() => setMobileOpen(false)}><X size={20} /></button>
         </div>
@@ -100,7 +100,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   return (
                     <Link className={`nav-link ${active ? "active" : ""}`} href={`/admin/${module.id}/${module.features[0].id}`} key={module.id} onClick={() => setMobileOpen(false)}>
                       <Icon size={17} strokeWidth={1.8} /><span>{t(`mod.${module.id}.short`, module.shortLabel)}</span>
-                      {module.id === "stocks" && <b className="nav-alert">2</b>}
                     </Link>
                   );
                 })}
@@ -109,9 +108,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="sidebar-footer">
-          <div className="production-health"><span><i /> {t("shell.workshopOnline", "Atelier en ligne")}</span><strong>93%</strong></div>
-          <div className="health-bar"><i /></div>
-          <small>{t("shell.machinesActive", "3 machines actives sur 4")}</small>
+          <div className="production-health"><span><i /> {t("shell.workshopOnline", "Atelier en ligne")}</span><strong>0%</strong></div>
+          <div className="health-bar"><i style={{ width: "0%" }} /></div>
+          <small>{t("shell.machinesActive", "Aucune machine active")}</small>
         </div>
       </aside>
 
@@ -125,14 +124,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <LanguageSwitcher />
             <div className="popover-wrap">
               <button className="icon-button notification-button" aria-label={t("common.notifications", "Notifications")} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((value) => !value)}>
-                <Bell size={19} /><span />
+                <Bell size={19} />
               </button>
               {notificationsOpen && (
                 <div className="popover notifications-popover">
                   <div className="popover-head"><strong>{t("common.notifications", "Notifications")}</strong><button onClick={() => setNotificationsOpen(false)}>{t("common.markRead", "Tout marquer comme lu")}</button></div>
-                  <div className="notification-item"><i className="tone-yellow" /><p><strong>{t("notif.stockTitle", "Stock faible")}</strong><span>L’encre Process Magenta est sous le seuil.</span></p></div>
-                  <div className="notification-item"><i className="tone-magenta" /><p><strong>{t("notif.qualityTitle", "Contrôle non conforme")}</strong><span>Le lot LOT-DEP-017 requiert une action.</span></p></div>
-                  <div className="notification-item"><i className="tone-cyan" /><p><strong>{t("notif.batTitle", "BAT validé")}</strong><span>La commande CMD-260903 peut avancer.</span></p></div>
+                  <div className="notification-item"><p><span>{t("notif.empty", "Aucune notification")}</span></p></div>
                 </div>
               )}
             </div>

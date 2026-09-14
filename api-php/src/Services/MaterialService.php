@@ -103,10 +103,26 @@ final class MaterialService
 
     public function delete(AuthContext $auth, string $id, string $ip): void
     {
-        $this->mustExist($auth, $id);
+        $row = $this->one($auth, $id);
+        $linked = $this->pdo->prepare(
+            'SELECT 1 FROM supply_lines WHERE company_id = :company_id AND material_id = :id LIMIT 1',
+        );
+        $linked->execute(['company_id' => $auth->companyId, 'id' => $id]);
+        if ($linked->fetchColumn()) {
+            throw HttpException::conflict('Impossible de supprimer cette matière : des approvisionnements y sont rattachés.');
+        }
+        foreach (['stock_movements', 'stock_alerts', 'inventory_lines'] as $table) {
+            $check = $this->pdo->prepare(
+                "SELECT 1 FROM {$table} WHERE company_id = :company_id AND article_kind = 'material' AND article_id = :id LIMIT 1",
+            );
+            $check->execute(['company_id' => $auth->companyId, 'id' => $id]);
+            if ($check->fetchColumn()) {
+                throw HttpException::conflict('Impossible de supprimer cette matière : des mouvements ou un inventaire y sont rattachés.');
+            }
+        }
         $this->pdo->prepare('DELETE FROM materials WHERE id = :id AND company_id = :company_id')
             ->execute(['id' => $id, 'company_id' => $auth->companyId]);
-        $this->audit->record($auth, 'material.delete', 'configuration', 'matieres', 'material', $id, '', $ip);
+        $this->audit->record($auth, 'material.delete', 'configuration', 'matieres', 'material', $id, (string) $row['name'], $ip);
     }
 
     private function one(AuthContext $auth, string $id): array

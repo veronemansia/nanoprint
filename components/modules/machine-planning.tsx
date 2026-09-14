@@ -149,6 +149,8 @@ export function MachinePlanning() {
         setSelectedId(created.id);
       }
       setDraft(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : te("Enregistrement impossible."));
     } finally {
       setPending(false);
     }

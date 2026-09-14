@@ -9,7 +9,7 @@ import { defaultAccessRoles, normalizeAccessRoles, type AccessRole } from "@/lib
 import { defaultCompanySettings, formatAmount, normalizeCompanySettings, type CompanySettings } from "@/lib/company-settings";
 import { DEFAULT_CLIENT_SECTORS } from "@/lib/client-segmentation";
 import { defaultWorkshops } from "@/lib/modules";
-import { buildConvertedOrder, hydrateOrderRecord, orderForQuote } from "@/lib/quote-conversion";
+import { buildConvertedOrder, consumeQuoteMaterials, hydrateOrderRecord, orderForQuote } from "@/lib/quote-conversion";
 import {
   avenantBlockReason,
   avenantUnchanged,
@@ -50,7 +50,10 @@ import {
   parseSupplyLines,
   stringifySupplyLines,
   supplyBlockReason,
+  supplyQtyAppro,
   supplyTotals,
+  withSupplyArchive,
+  materialStock,
   type SupplyLine,
 } from "@/lib/supply";
 import { applyStockWithdraw, withdrawBlockReason, type StockKind } from "@/lib/stock";
@@ -58,18 +61,36 @@ import { defaultLocale, LOCALE_STORAGE, isLocale, localizeKnown, readStoredLocal
 import type { MockRecord, MockUser, Toast } from "@/lib/types";
 import { loginAction, logoutAction, markHybridSessionAction } from "@/app/actions/auth";
 import {
+  addClientSectorAction,
   addLookupAction,
+  assignClientsSectorAction,
   bootstrapAction,
   createRecordAction,
+  deleteClientSectorAction,
   deleteLookupAction,
   deleteRecordAction,
   deleteRoleAction,
+  listAuditLogsAction,
+  renameClientSectorAction,
   renameLookupAction,
   resetSettingsAction,
   resetTaxesAction,
   saveRoleAction,
   saveSettingsAction,
   updateRecordAction,
+  convertQuoteAction,
+  applyOrderAvenantAction,
+  issueInvoiceAction,
+  recordDepositPaymentAction,
+  uploadOrderFilesAction,
+  replaceOrderFileAction,
+  deleteOrderFileAction,
+  validateSupplyAction,
+  deleteSupplyAction,
+  withdrawStockAction,
+  createStockAlertAction,
+  updateStockAlertAction,
+  updateInventoryAction,
 } from "@/app/actions/data";
 import { isApiFeature } from "@/lib/api-features";
 
@@ -120,13 +141,14 @@ type AppContextValue = {
   deleteSupply: (id: string) => Promise<boolean>;
   withdrawStock: (input: { kind: StockKind; id: string; quantity: number; reason: string; note?: string }) => Promise<boolean>;
   notify: (title: string, message: string, tone?: Toast["tone"]) => void;
+  refreshAuditLogs: () => Promise<void>;
   locale: Locale;
   setLocale: (locale: Locale) => void;
   t: (key: string, fallback: string, vars?: Record<string, string | number>) => string;
   te: (text: string) => string;
 };
 
-const STORAGE_DATA = "nanoprint.mock.records.v33";
+const STORAGE_DATA = "nanoprint.mock.records.v34";
 const STORAGE_USER = "nanoprint.mock.session.v1";
 const AppContext = createContext<AppContextValue | null>(null);
 
@@ -137,10 +159,61 @@ function titleCaseEmail(email: string) {
   return local.replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Utilisateur NanoPrint";
 }
 
+const LIVE_RECORD_KEYS = [
+  "audit-trail",
+  "fiches-clients",
+  "contacts-multiples",
+  "calculateur",
+  "devis-multi",
+  "statuts-commandes",
+  "avenants",
+  "factures",
+  "acomptes",
+  "fichiers-clients",
+  "planning-machines",
+  "fournisseurs",
+  "approvisionnement",
+  "seuils-alerte",
+  "inventaire",
+  "stock-mouvements",
+] as const;
+
+function liveSlice(boot?: Record<string, MockRecord[]>) {
+  const live: Partial<Record<(typeof LIVE_RECORD_KEYS)[number], MockRecord[]>> = {};
+  for (const key of LIVE_RECORD_KEYS) {
+    if (boot && Array.isArray(boot[key])) live[key] = boot[key];
+  }
+  return live;
+}
+
+function withLiveRecords(
+  records: Record<string, MockRecord[]>,
+  live: Partial<Record<(typeof LIVE_RECORD_KEYS)[number], MockRecord[]>> = {},
+  wipeLive = false,
+): Record<string, MockRecord[]> {
+  const next = { ...records };
+  for (const key of LIVE_RECORD_KEYS) {
+    next[key] = live[key] ?? (wipeLive ? [] : records[key] ?? []);
+  }
+  return next;
+}
+
+function syncAlertCurrents(alerts: MockRecord[] | undefined, materials: MockRecord[], catalogue: MockRecord[]) {
+  const byId = new Map([...materials, ...catalogue].map((item) => [item.id, item]));
+  return (alerts ?? []).map((alert) => {
+    const article = byId.get(String(alert.articleId || ""));
+    if (!article) return alert;
+    const currentQty = Math.max(0, Math.round(Number(article.quantity) || 0));
+    const minimum = Math.max(0, Math.round(Number(alert.minimum) || 0));
+    const status = String(alert.status) === "Commande lancée" ? "Commande lancée" : currentQty <= minimum ? "Alerte" : "OK";
+    return { ...alert, current: currentQty, qtyInit: currentQty, qtySolde: currentQty, status };
+  });
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<MockUser | null>(null);
-  const [records, setRecords] = useState<Record<string, MockRecord[]>>(mockRecords);
+  const [records, setRecords] = useState<Record<string, MockRecord[]>>(() => withLiveRecords(mockRecords, {}, true));
   const [catalogueFamilies, setCatalogueFamilies] = useState<string[]>(defaultCatalogueFamilies);
   const [workshops, setWorkshops] = useState<string[]>(defaultWorkshops);
   const [clientSectors, setClientSectors] = useState<string[]>(DEFAULT_CLIENT_SECTORS);
@@ -192,10 +265,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setMaterialUnits(boot.materialUnits.length ? boot.materialUnits : defaultMaterialUnits);
             const savedRecords = localStorage.getItem(STORAGE_DATA);
             const parsed = savedRecords ? JSON.parse(savedRecords) as { records?: Record<string, MockRecord[]>; clientSectors?: string[] } : {};
-            setRecords({ ...mockRecords, ...(parsed.records ?? {}), ...boot.records });
-            const storedSectors = parsed.clientSectors ?? [];
-            const fromClients = (parsed.records?.["fiches-clients"] ?? mockRecords["fiches-clients"]).map((item) => String(item.sector || "")).filter(Boolean);
-            setClientSectors([...new Set([...DEFAULT_CLIENT_SECTORS, ...storedSectors, ...fromClients])]);
+            setRecords(withLiveRecords({ ...mockRecords, ...(parsed.records ?? {}), ...boot.records }, liveSlice(boot.records)));
+            setClientSectors(boot.clientSectors?.length ? boot.clientSectors : DEFAULT_CLIENT_SECTORS);
             localStorage.setItem(STORAGE_USER, JSON.stringify(boot.user));
             return;
           }
@@ -211,7 +282,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               settings?: unknown;
               accessRoles?: unknown;
             };
-            if (parsed.records) setRecords({ ...mockRecords, ...parsed.records });
+            if (parsed.records) setRecords(withLiveRecords({ ...mockRecords, ...parsed.records }, {}, true));
             if (parsed.catalogueFamilies?.length) {
               setCatalogueFamilies([...new Set([...defaultCatalogueFamilies, ...parsed.catalogueFamilies])]);
             }
@@ -241,7 +312,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (ready) localStorage.setItem(STORAGE_DATA, JSON.stringify({ records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles }));
+    if (ready) {
+      localStorage.setItem(STORAGE_DATA, JSON.stringify({
+        records: withLiveRecords(records, {}, true),
+        catalogueFamilies,
+        workshops,
+        clientSectors,
+        materialTypes,
+        materialUnits,
+        settings,
+        accessRoles,
+      }));
+    }
   }, [ready, records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles]);
 
   const notify = useCallback((title: string, message: string, tone: Toast["tone"] = "success") => {
@@ -249,6 +331,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setToasts((current) => [...current, { id, title: localizeKnown(locale, title), message: localizeKnown(locale, message), tone }]);
     window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 4300);
   }, [locale]);
+
+  const refreshAuditLogs = useCallback(async () => {
+    if (!apiLive) return;
+    try {
+      const rows = await listAuditLogsAction();
+      setRecords((current) => withLiveRecords(current, { "audit-trail": Array.isArray(rows) ? rows : [] }));
+    } catch {
+      /* keep the last known journal */
+    }
+  }, [apiLive]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
@@ -263,7 +355,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setWorkshops(boot.workshops.length ? boot.workshops : defaultWorkshops);
         setMaterialTypes(boot.materialTypes.length ? boot.materialTypes : defaultMaterialTypes);
         setMaterialUnits(boot.materialUnits.length ? boot.materialUnits : defaultMaterialUnits);
-        setRecords((current) => ({ ...current, ...boot.records }));
+        setClientSectors(boot.clientSectors?.length ? boot.clientSectors : DEFAULT_CLIENT_SECTORS);
+        setRecords((current) => withLiveRecords({ ...current, ...boot.records }, liveSlice(boot.records)));
         localStorage.setItem(STORAGE_USER, JSON.stringify(boot.user));
         return;
       }
@@ -284,6 +377,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));
         setUser(nextUser);
         setApiLive(false);
+        setRecords((current) => withLiveRecords(current, {}, true));
         void markHybridSessionAction();
         return;
       }
@@ -295,15 +389,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const label = name.trim();
     if (!label) return;
     setCatalogueFamilies((current) => current.includes(label) ? current : [...current, label]);
-    if (apiLive) void addLookupAction("catalogue-families", label).catch(() => undefined);
-  }, [apiLive]);
+    if (apiLive) void addLookupAction("catalogue-families", label).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
+  }, [apiLive, refreshAuditLogs]);
 
   const addWorkshop = useCallback((name: string) => {
     const label = name.trim();
     if (!label) return;
     setWorkshops((current) => current.includes(label) ? current : [...current, label]);
-    if (apiLive) void addLookupAction("workshops", label).catch(() => undefined);
-  }, [apiLive]);
+    if (apiLive) void addLookupAction("workshops", label).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
+  }, [apiLive, refreshAuditLogs]);
 
   const renameWorkshop = useCallback((from: string, to: string) => {
     const next = to.trim();
@@ -319,9 +413,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.workshop) === from ? { ...record, workshop: next } : record,
       ),
     }));
-    if (apiLive) void renameLookupAction("workshops", from, next).catch(() => undefined);
+    if (apiLive) void renameLookupAction("workshops", from, next).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
     return next;
-  }, [apiLive]);
+  }, [apiLive, refreshAuditLogs]);
 
   const deleteWorkshop = useCallback((name: string) => {
     const remaining = workshops.filter((item) => item !== name);
@@ -334,16 +428,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.workshop) === name ? { ...record, workshop: fallback } : record,
       ),
     }));
-    if (apiLive) void deleteLookupAction("workshops", name).catch(() => undefined);
+    if (apiLive) void deleteLookupAction("workshops", name).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
     return fallback;
-  }, [workshops, apiLive]);
+  }, [workshops, apiLive, refreshAuditLogs]);
 
   const addMaterialType = useCallback((name: string) => {
     const label = name.trim();
     if (!label) return;
     setMaterialTypes((current) => current.includes(label) ? current : [...current, label]);
-    if (apiLive) void addLookupAction("material-types", label).catch(() => undefined);
-  }, [apiLive]);
+    if (apiLive) void addLookupAction("material-types", label).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
+  }, [apiLive, refreshAuditLogs]);
 
   const renameMaterialType = useCallback((from: string, to: string) => {
     const next = to.trim();
@@ -359,9 +453,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.type) === from ? { ...record, type: next } : record,
       ),
     }));
-    if (apiLive) void renameLookupAction("material-types", from, next).catch(() => undefined);
+    if (apiLive) void renameLookupAction("material-types", from, next).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
     return next;
-  }, [apiLive]);
+  }, [apiLive, refreshAuditLogs]);
 
   const deleteMaterialType = useCallback((name: string) => {
     const remaining = materialTypes.filter((item) => item !== name);
@@ -374,16 +468,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.type) === name ? { ...record, type: fallback } : record,
       ),
     }));
-    if (apiLive) void deleteLookupAction("material-types", name).catch(() => undefined);
+    if (apiLive) void deleteLookupAction("material-types", name).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
     return fallback;
-  }, [materialTypes, apiLive]);
+  }, [materialTypes, apiLive, refreshAuditLogs]);
 
   const addMaterialUnit = useCallback((name: string) => {
     const label = name.trim();
     if (!label) return;
     setMaterialUnits((current) => current.includes(label) ? current : [...current, label]);
-    if (apiLive) void addLookupAction("material-units", label).catch(() => undefined);
-  }, [apiLive]);
+    if (apiLive) void addLookupAction("material-units", label).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
+  }, [apiLive, refreshAuditLogs]);
 
   const renameMaterialUnit = useCallback((from: string, to: string) => {
     const next = to.trim();
@@ -399,9 +493,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.unit) === from ? { ...record, unit: next } : record,
       ),
     }));
-    if (apiLive) void renameLookupAction("material-units", from, next).catch(() => undefined);
+    if (apiLive) void renameLookupAction("material-units", from, next).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
     return next;
-  }, [apiLive]);
+  }, [apiLive, refreshAuditLogs]);
 
   const deleteMaterialUnit = useCallback((name: string) => {
     const remaining = materialUnits.filter((item) => item !== name);
@@ -414,16 +508,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.unit) === name ? { ...record, unit: fallback } : record,
       ),
     }));
-    if (apiLive) void deleteLookupAction("material-units", name).catch(() => undefined);
+    if (apiLive) void deleteLookupAction("material-units", name).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
     return fallback;
-  }, [materialUnits, apiLive]);
+  }, [materialUnits, apiLive, refreshAuditLogs]);
 
   const addClientSector = useCallback((name: string) => {
     const label = name.trim();
     if (!label) return "";
     setClientSectors((current) => current.includes(label) ? current : [...current, label]);
+    if (apiLive) void addClientSectorAction(label).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
     return label;
-  }, []);
+  }, [apiLive, refreshAuditLogs]);
 
   const renameClientSector = useCallback((from: string, to: string) => {
     const next = to.trim();
@@ -439,8 +534,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.sector) === from ? { ...record, sector: next } : record,
       ),
     }));
+    if (apiLive) void renameClientSectorAction(from, next).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
     return next;
-  }, []);
+  }, [apiLive, refreshAuditLogs]);
 
   const deleteClientSector = useCallback((name: string) => {
     setClientSectors((current) => current.filter((item) => item !== name));
@@ -450,11 +546,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         String(record.sector) === name ? { ...record, sector: "" } : record,
       ),
     }));
-  }, []);
+    if (apiLive) void deleteClientSectorAction(name).then(() => { void refreshAuditLogs(); }).catch(() => undefined);
+  }, [apiLive, refreshAuditLogs]);
 
   const assignClientsToSector = useCallback(async (ids: string[], sector: string) => {
-    await wait(350);
     const label = sector.trim();
+    if (apiLive) {
+      try {
+        const rows = await assignClientsSectorAction(ids, label);
+        setRecords((current) => ({ ...current, "fiches-clients": rows }));
+        void refreshAuditLogs();
+        notify("Affectation enregistrée", t("toast.assigned", "{n} client(s) classé(s) dans « {label} ».", { n: ids.length, label }));
+        return;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Affectation impossible.", "error");
+        throw error;
+      }
+    }
+    await wait(350);
     setRecords((current) => ({
       ...current,
       "fiches-clients": (current["fiches-clients"] ?? []).map((record) =>
@@ -462,7 +571,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ),
     }));
     notify("Affectation enregistrée", t("toast.assigned", "{n} client(s) classé(s) dans « {label} ».", { n: ids.length, label }));
-  }, [notify, t]);
+  }, [notify, t, apiLive, refreshAuditLogs]);
 
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_USER);
@@ -473,10 +582,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const createRecord = useCallback(async (featureId: string, values: Record<string, string | number>) => {
     const target = featureId === "tarifs" ? "catalogue" : featureId;
+    if (apiLive && featureId === "seuils-alerte") {
+      try {
+        const result = await createStockAlertAction(values);
+        setRecords((current) => ({
+          ...current,
+          "seuils-alerte": [result.alert, ...(current["seuils-alerte"] ?? []).filter((item) => item.id !== result.alert.id)],
+          matieres: result.materials,
+          catalogue: result.catalogue,
+        }));
+        void refreshAuditLogs();
+        notify("Enregistrement créé", t("toast.added", "{ref} a été ajouté.", { ref: result.alert.reference }));
+        return result.alert;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Création impossible.", "error");
+        throw error;
+      }
+    }
     if (apiLive && isApiFeature(featureId)) {
       try {
         const next = await createRecordAction(target, values);
-        setRecords((current) => ({ ...current, [target]: [next, ...(current[target] ?? [])] }));
+        setRecords((current) => ({ ...current, [target]: [next, ...(current[target] ?? []).filter((item) => item.id !== next.id)] }));
+        void refreshAuditLogs();
         notify("Enregistrement créé", t("toast.added", "{ref} a été ajouté.", { ref: next.reference }));
         return next;
       } catch (error) {
@@ -497,17 +624,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setRecords((current) => ({ ...current, [featureId]: [next, ...(current[featureId] ?? [])] }));
     notify("Enregistrement créé", t("toast.added", "{ref} a été ajouté.", { ref: next.reference }));
     return next;
-  }, [notify, t, apiLive]);
+  }, [notify, t, apiLive, refreshAuditLogs]);
 
   const updateRecord = useCallback(async (featureId: string, id: string, values: Record<string, string | number>) => {
     const target = featureId === "tarifs" ? "catalogue" : featureId;
+    if (apiLive && featureId === "seuils-alerte") {
+      try {
+        const result = await updateStockAlertAction(id, values);
+        setRecords((current) => ({
+          ...current,
+          "seuils-alerte": (current["seuils-alerte"] ?? []).map((record) => (record.id === id ? { ...record, ...result.alert } : record)),
+          matieres: result.materials,
+          catalogue: result.catalogue,
+        }));
+        void refreshAuditLogs();
+        notify("Modifications enregistrées", "La fiche a été mise à jour.");
+        return;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Mise à jour impossible.", "error");
+        throw error;
+      }
+    }
+    if (apiLive && featureId === "inventaire") {
+      try {
+        const result = await updateInventoryAction(id, values);
+        setRecords((current) => ({
+          ...current,
+          inventaire: result.inventories ?? (current.inventaire ?? []).map((record) => (record.id === id ? { ...record, ...result.inventory } : record)),
+          matieres: result.materials,
+          catalogue: result.catalogue,
+          "seuils-alerte": syncAlertCurrents(current["seuils-alerte"], result.materials, result.catalogue),
+        }));
+        void refreshAuditLogs();
+        notify("Modifications enregistrées", "La fiche a été mise à jour.");
+        return;
+      } catch (error) {
+        notify("Erreur", error instanceof Error ? error.message : "Mise à jour impossible.", "error");
+        throw error;
+      }
+    }
     if (apiLive && isApiFeature(featureId)) {
       try {
         const updated = await updateRecordAction(target, id, values);
         setRecords((current) => ({
           ...current,
           [target]: (current[target] ?? []).map((record) => (record.id === id ? { ...record, ...updated } : record)),
+          ...(target === "fiches-clients"
+            ? {
+                "contacts-multiples": (current["contacts-multiples"] ?? []).map((item) =>
+                  String(item.companyId) === id ? { ...item, company: updated.name } : item,
+                ),
+              }
+            : {}),
         }));
+        void refreshAuditLogs();
         notify("Modifications enregistrées", "La fiche a été mise à jour.");
         return;
       } catch (error) {
@@ -538,7 +708,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
     notify("Modifications enregistrées", "La fiche a été mise à jour.");
-  }, [notify, apiLive]);
+  }, [notify, apiLive, refreshAuditLogs]);
 
   const deleteRecord = useCallback(async (featureId: string, id: string) => {
     const target = featureId === "tarifs" ? "catalogue" : featureId;
@@ -548,7 +718,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setRecords((current) => ({
           ...current,
           [target]: (current[target] ?? []).filter((record) => record.id !== id),
+          ...(target === "fiches-clients"
+            ? { "contacts-multiples": (current["contacts-multiples"] ?? []).filter((item) => String(item.companyId) !== id) }
+            : {}),
         }));
+        void refreshAuditLogs();
         notify("Élément supprimé", "La suppression a été appliquée.", "info");
         return;
       } catch (error) {
@@ -562,7 +736,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       [featureId]: (current[featureId] ?? []).filter((record) => record.id !== id),
     }));
     notify("Élément supprimé", "La suppression a été appliquée aux données locales.", "info");
-  }, [notify, apiLive]);
+  }, [notify, apiLive, refreshAuditLogs]);
 
   const convertCalculatorQuote = useCallback(async (quoteId: string) => {
     const safeId = String(quoteId || "").trim();
@@ -571,12 +745,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notify("Conversion impossible", "Ce devis n’existe pas dans le calculateur.", "error");
       return null;
     }
+    if (apiLive) {
+      try {
+        const converted = await convertQuoteAction(safeId);
+        const convertedMsg = t("toast.converted", "{quote} est devenu {order} (En attente).", {
+          quote: converted.quote.reference,
+          order: converted.order.reference,
+        });
+        setRecords((current) => {
+          const materials = converted.materials ?? current.matieres ?? [];
+          const catalogue = current.catalogue ?? [];
+          return {
+            ...current,
+            calculateur: (current.calculateur ?? []).map((item) => (item.id === safeId ? { ...item, ...converted.quote } : item)),
+            "statuts-commandes": [converted.order, ...(current["statuts-commandes"] ?? []).filter((item) => item.id !== converted.order.id)],
+            matieres: materials,
+            "stock-mouvements": converted.movements ?? current["stock-mouvements"] ?? [],
+            "seuils-alerte": converted.materials
+              ? syncAlertCurrents(current["seuils-alerte"], materials, catalogue)
+              : current["seuils-alerte"],
+          };
+        });
+        void refreshAuditLogs();
+        notify(
+          "Devis converti",
+          converted.consumed && converted.consumed > 0 ? `${convertedMsg} Stock matières retiré.` : convertedMsg,
+        );
+        return converted.order;
+      } catch (error) {
+        notify("Conversion impossible", error instanceof Error ? error.message : "Chiffrage non convertible.", "error");
+        return null;
+      }
+    }
     const built = buildConvertedOrder(
       quote,
       records["statuts-commandes"] ?? [],
       records["fiches-clients"] ?? [],
       records.catalogue ?? [],
       settings,
+      records.matieres ?? [],
     );
     if (built.error || !built.values) {
       notify("Conversion impossible", built.error || "Chiffrage non convertible.", "error");
@@ -592,12 +799,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...built.values,
     };
     let applied = true;
+    let consumeError = "";
+    let consumedCount = 0;
     setRecords((current) => {
       const currentQuote = (current.calculateur ?? []).find((item) => item.id === safeId);
       if (!currentQuote || currentQuote.status === "Converti" || orderForQuote(current["statuts-commandes"] ?? [], currentQuote)) {
         applied = false;
         return current;
       }
+      const consumed = consumeQuoteMaterials(
+        currentQuote,
+        current.catalogue ?? [],
+        current.matieres ?? [],
+        order.reference,
+      );
+      if (consumed.error) {
+        applied = false;
+        consumeError = consumed.error;
+        return current;
+      }
+      consumedCount = consumed.movements.length;
       return {
         ...current,
         calculateur: (current.calculateur ?? []).map((item) =>
@@ -606,15 +827,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             : item,
         ),
         "statuts-commandes": [order, ...(current["statuts-commandes"] ?? [])],
+        matieres: consumed.materials,
+        "stock-mouvements": [...consumed.movements, ...(current["stock-mouvements"] ?? [])],
+        "seuils-alerte": syncAlertCurrents(current["seuils-alerte"], consumed.materials, current.catalogue ?? []),
       };
     });
     if (!applied) {
-      notify("Conversion impossible", "Ce devis a déjà été converti.", "error");
+      notify("Conversion impossible", consumeError || "Ce devis a déjà été converti.", "error");
       return null;
     }
-    notify("Devis converti", t("toast.converted", "{quote} est devenu {order} (En attente).", { quote: quote.reference, order: order.reference }));
+    const convertedMsg = t("toast.converted", "{quote} est devenu {order} (En attente).", { quote: quote.reference, order: order.reference });
+    notify("Devis converti", consumedCount > 0 ? `${convertedMsg} Stock matières retiré.` : convertedMsg);
     return order;
-  }, [records, settings, notify, t]);
+  }, [records, settings, notify, t, apiLive, refreshAuditLogs]);
 
   const applyOrderAvenant = useCallback(async (orderId: string, input: { reason: string; dueDate: string; payload: QuotePayload }) => {
     const safeId = String(orderId || "").trim();
@@ -632,6 +857,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (closed) {
       notify("Avenant impossible", closed, "error");
       return null;
+    }
+    if (apiLive) {
+      try {
+        const applied = await applyOrderAvenantAction(safeId, { reason, dueDate: String(input.dueDate || ""), payload: input.payload });
+        setRecords((current) => ({
+          ...current,
+          "statuts-commandes": (current["statuts-commandes"] ?? []).map((item) => (item.id === safeId ? { ...item, ...applied.order } : item)),
+          avenants: [applied.avenant, ...(current.avenants ?? []).filter((item) => item.id !== applied.avenant.id)],
+        }));
+        void refreshAuditLogs();
+        notify("Avenant enregistré", t("toast.avenantSaved", "{avenant} met à jour {order}. L’historique est conservé.", { avenant: applied.avenant.reference, order: order.reference }));
+        return applied.avenant;
+      } catch (error) {
+        notify("Avenant impossible", error instanceof Error ? error.message : "Aucun changement à enregistrer.", "error");
+        return null;
+      }
     }
     const quotes = records.calculateur ?? [];
     const preview = previewOrderAvenant(
@@ -707,7 +948,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     notify("Avenant enregistré", t("toast.avenantSaved", "{avenant} met à jour {order}. L’historique est conservé.", { avenant: avenant.reference, order: order.reference }));
     return avenant;
-  }, [records, settings, notify, t]);
+  }, [records, settings, notify, t, apiLive, refreshAuditLogs]);
 
   const issueInvoice = useCallback(async (orderId: string, input: { settlement: "solde" | "acompte"; amount?: number }) => {
     const safeId = String(orderId || "").trim();
@@ -730,6 +971,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
       billed = check.amount;
+    }
+    if (apiLive) {
+      try {
+        const invoice = await issueInvoiceAction(safeId, { settlement, amount: billed });
+        setRecords((current) => ({
+          ...current,
+          factures: [invoice, ...(current.factures ?? []).filter((item) => item.id !== invoice.id)],
+        }));
+        void refreshAuditLogs();
+        notify(
+          settlement === "acompte" ? "Facture d’acompte" : "Facture de solde",
+          t("toast.invoiceIssued", "{ref} · {amount}. Reste {remaining}.", {
+            ref: invoice.reference,
+            amount: formatAmount(Number(invoice.amount) || billed, settings),
+            remaining: formatAmount(Number(invoice.remaining) || 0, settings),
+          }),
+        );
+        return invoice;
+      } catch (error) {
+        notify("Facture impossible", error instanceof Error ? error.message : "La facture n’a pas pu être générée.", "error");
+        return null;
+      }
     }
     await wait();
     const packed = billingLines(order, records.calculateur ?? [], records["fiches-clients"] ?? [], records.catalogue ?? [], settings);
@@ -757,7 +1020,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       t("toast.invoiceIssued", "{ref} · {amount}. Reste {remaining}.", { ref: invoice.reference, amount: formatAmount(billed, settings), remaining: formatAmount(remaining, settings) }),
     );
     return invoice;
-  }, [records, settings, notify, t]);
+  }, [records, settings, notify, t, apiLive, refreshAuditLogs]);
 
   const recordDepositPayment = useCallback(async (orderId: string, amount: number) => {
     const safeId = String(orderId || "").trim();
@@ -772,6 +1035,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (check.error) {
       notify("Paiement impossible", check.error, "error");
       return null;
+    }
+    if (apiLive) {
+      try {
+        const result = await recordDepositPaymentAction(safeId, check.amount);
+        setRecords((currentRecords) => {
+          const list = currentRecords.acomptes ?? [];
+          const exists = list.some((item) => item.id === result.deposit.id);
+          return {
+            ...currentRecords,
+            acomptes: exists
+              ? list.map((item) => (item.id === result.deposit.id ? result.deposit : item))
+              : [result.deposit, ...list],
+          };
+        });
+        void refreshAuditLogs();
+        notify("Paiement enregistré", t("toast.paymentSaved", "{amount} encaissé. Reste {remaining}.", {
+          amount: formatAmount(check.amount, settings),
+          remaining: formatAmount(Number(result.deposit.remaining) || 0, settings),
+        }));
+        return result;
+      } catch (error) {
+        notify("Paiement impossible", error instanceof Error ? error.message : "Le paiement n’a pas pu être enregistré.", "error");
+        return null;
+      }
     }
     await wait();
     const payment: BillingPayment = {
@@ -817,7 +1104,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     notify("Paiement enregistré", t("toast.paymentSaved", "{amount} encaissé. Reste {remaining}.", { amount: formatAmount(check.amount, settings), remaining: formatAmount(remaining, settings) }));
     return { deposit, payment };
-  }, [records, settings, notify, t]);
+  }, [records, settings, notify, t, apiLive, refreshAuditLogs]);
 
   const uploadOrderFiles = useCallback(async (orderId: string, files: File[]) => {
     const order = (records["statuts-commandes"] ?? []).find((item) => item.id === String(orderId || "").trim());
@@ -831,6 +1118,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
     const current = records["fichiers-clients"] ?? [];
+    if (apiLive) {
+      try {
+        const form = new FormData();
+        for (const file of check.files) form.append("files", file);
+        const result = await uploadOrderFilesAction(order.id, form);
+        const saved = Array.isArray(result.files) ? result.files : [];
+        const previousIds = new Set(current.map((item) => item.id));
+        const created = saved.filter((item) => !previousIds.has(item.id));
+        const replaced = saved.filter((item) => previousIds.has(item.id));
+        setRecords((currentRecords) => {
+          let list = currentRecords["fichiers-clients"] ?? [];
+          for (const file of saved) {
+            const exists = list.some((item) => item.id === file.id);
+            list = exists ? list.map((item) => (item.id === file.id ? file : item)) : [file, ...list];
+          }
+          return { ...currentRecords, "fichiers-clients": list };
+        });
+        void refreshAuditLogs();
+        if (created.length && replaced.length) {
+          notify("Fichiers mis à jour", t("toast.filesMixed", "{created} déposé(s), {replaced} remplacé(s).", { created: created.length, replaced: replaced.length }));
+        } else if (replaced.length) {
+          notify("Fichiers corrigés", t("toast.filesReplaced", "{n} fichier(s) remplacé(s) par une nouvelle version.", { n: replaced.length }));
+        } else {
+          notify("Fichiers déposés", t("toast.filesUploaded", "{n} fichier(s) enregistré(s) pour {order}.", { n: created.length || saved.length, order: order.reference }));
+        }
+        return saved;
+      } catch (error) {
+        notify("Dépôt impossible", error instanceof Error ? error.message : "Les fichiers n’ont pas pu être déposés.", "error");
+        return null;
+      }
+    }
     const created: MockRecord[] = [];
     const replaced: MockRecord[] = [];
     let nextList = current;
@@ -882,7 +1200,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notify("Fichiers déposés", t("toast.filesUploaded", "{n} fichier(s) enregistré(s) pour {order}.", { n: created.length, order: order.reference }));
     }
     return [...created, ...replaced];
-  }, [records, notify, t]);
+  }, [records, notify, t, apiLive, refreshAuditLogs]);
 
   const replaceOrderFile = useCallback(async (fileId: string, file: File) => {
     const current = records["fichiers-clients"] ?? [];
@@ -898,6 +1216,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     const nextFile = check.files[0];
     if (!nextFile) return null;
+    if (apiLive) {
+      try {
+        const form = new FormData();
+        form.append("file", nextFile);
+        const updated = await replaceOrderFileAction(existing.id, form);
+        setRecords((currentRecords) => ({
+          ...currentRecords,
+          "fichiers-clients": (currentRecords["fichiers-clients"] ?? []).map((item) => (item.id === existing.id ? updated : item)),
+        }));
+        void refreshAuditLogs();
+        notify("Fichier corrigé", t("toast.fileVersion", "{name} · version {version}.", { name: updated.name, version: updated.version }));
+        return updated;
+      } catch (error) {
+        notify("Remplacement impossible", error instanceof Error ? error.message : "Le fichier n’a pas pu être remplacé.", "error");
+        return null;
+      }
+    }
     await putClientFileBlob(existing.id, nextFile);
     const updated: MockRecord = {
       ...existing,
@@ -915,7 +1250,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
     notify("Fichier corrigé", t("toast.fileVersion", "{name} · version {version}.", { name: updated.name, version: updated.version }));
     return updated;
-  }, [records, notify, t]);
+  }, [records, notify, t, apiLive, refreshAuditLogs]);
 
   const deleteOrderFile = useCallback(async (fileId: string) => {
     const current = records["fichiers-clients"] ?? [];
@@ -924,24 +1259,57 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notify("Suppression impossible", "Ce fichier n’existe plus.", "error");
       return false;
     }
-    await deleteClientFileBlob(existing.id);
+    if (apiLive) {
+      try {
+        await deleteOrderFileAction(existing.id);
+      } catch (error) {
+        notify("Suppression impossible", error instanceof Error ? error.message : "Le fichier n’a pas pu être supprimé.", "error");
+        return false;
+      }
+    } else {
+      await deleteClientFileBlob(existing.id);
+    }
     setRecords((currentRecords) => ({
       ...currentRecords,
       "fichiers-clients": (currentRecords["fichiers-clients"] ?? []).filter((item) => item.id !== existing.id),
     }));
+    if (apiLive) void refreshAuditLogs();
     notify("Fichier supprimé", existing.name, "info");
     return true;
-  }, [records, notify]);
+  }, [records, notify, apiLive, refreshAuditLogs]);
 
   const validateSupply = useCallback(async (input: { supplierId: string; lines: SupplyLine[] }) => {
     const supplier = (records.fournisseurs ?? []).find((item) => item.id === String(input.supplierId || ""));
     const materials = records.matieres ?? [];
-    const block = supplyBlockReason(String(input.supplierId || ""), input.lines, records.fournisseurs ?? [], materials);
+    const archived = input.lines.map((line) =>
+      withSupplyArchive(line, materialStock(materials.find((item) => item.id === line.materialId))),
+    );
+    const block = supplyBlockReason(String(input.supplierId || ""), archived, records.fournisseurs ?? [], materials);
     if (block || !supplier) {
       notify("Validation impossible", block || "Fournisseur introuvable.", "error");
       return null;
     }
-    const totals = supplyTotals(input.lines, settings);
+    if (apiLive) {
+      try {
+        const result = await validateSupplyAction({
+          supplierId: supplier.id,
+          lines: archived.map((line) => ({ materialId: line.materialId, quantity: supplyQtyAppro(line), qtyAppro: supplyQtyAppro(line) })),
+        });
+        setRecords((current) => ({
+          ...current,
+          approvisionnement: [result.supply, ...(current.approvisionnement ?? []).filter((item) => item.id !== result.supply.id)],
+          matieres: result.materials,
+          "seuils-alerte": syncAlertCurrents(current["seuils-alerte"], result.materials, current.catalogue ?? []),
+        }));
+        void refreshAuditLogs();
+        notify("Approvisionnement validé", t("toast.supplyReady", "{ref} — le bon de livraison est prêt.", { ref: result.supply.reference }));
+        return result.supply;
+      } catch (error) {
+        notify("Validation impossible", error instanceof Error ? error.message : "La validation a échoué.", "error");
+        return null;
+      }
+    }
+    const totals = supplyTotals(archived, settings);
     await wait();
     const reference = nextSupplyReference(records.approvisionnement ?? []);
     const record: MockRecord = {
@@ -952,20 +1320,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedAt: "À l’instant",
       supplier: supplier.name,
       supplierId: supplier.id,
-      quantity: input.lines.reduce((sum, line) => sum + line.quantity, 0),
+      quantity: archived.reduce((sum, line) => sum + supplyQtyAppro(line), 0),
       amount: totals.total,
       issuedAt: todayIso(),
       createdAt: new Date().toISOString(),
-      lines: stringifySupplyLines(input.lines),
+      lines: stringifySupplyLines(archived),
     };
     setRecords((current) => ({
       ...current,
       approvisionnement: [record, ...(current.approvisionnement ?? [])],
-      matieres: applySupplyToMaterials(current.matieres ?? [], input.lines),
+      matieres: applySupplyToMaterials(current.matieres ?? [], archived),
     }));
     notify("Approvisionnement validé", t("toast.supplyReady", "{ref} — le bon de livraison est prêt.", { ref: reference }));
     return record;
-  }, [records, settings, notify, t]);
+  }, [records, settings, notify, t, apiLive, refreshAuditLogs]);
 
   const deleteSupply = useCallback(async (id: string) => {
     const existing = (records.approvisionnement ?? []).find((item) => item.id === id);
@@ -978,6 +1346,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notify("Suppression impossible", block, "error");
       return false;
     }
+    if (apiLive) {
+      try {
+        const result = await deleteSupplyAction(existing.id);
+        setRecords((current) => ({
+          ...current,
+          approvisionnement: (current.approvisionnement ?? []).filter((item) => item.id !== existing.id),
+          matieres: result.materials,
+          "seuils-alerte": syncAlertCurrents(current["seuils-alerte"], result.materials, current.catalogue ?? []),
+        }));
+        void refreshAuditLogs();
+        notify("Approvisionnement supprimé", t("toast.supplyDeleted", "{ref} a été retiré. Le stock a été ajusté.", { ref: existing.reference }), "info");
+        return true;
+      } catch (error) {
+        notify("Suppression impossible", error instanceof Error ? error.message : "La suppression a échoué.", "error");
+        return false;
+      }
+    }
     const lines = parseSupplyLines(existing.lines);
     await wait();
     setRecords((current) => ({
@@ -987,7 +1372,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
     notify("Approvisionnement supprimé", t("toast.supplyDeleted", "{ref} a été retiré. Le stock a été ajusté.", { ref: existing.reference }), "info");
     return true;
-  }, [records, notify, t]);
+  }, [records, notify, t, apiLive, refreshAuditLogs]);
 
   const withdrawStock = useCallback(async (input: { kind: StockKind; id: string; quantity: number; reason: string; note?: string }) => {
     const source = input.kind === "finis" ? "catalogue" : "matieres";
@@ -996,6 +1381,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!existing || block) {
       notify("Retrait impossible", block || "Article introuvable.", "error");
       return false;
+    }
+    if (apiLive) {
+      try {
+        const result = await withdrawStockAction(input);
+        setRecords((current) => ({
+          ...current,
+          matieres: result.materials,
+          catalogue: result.catalogue,
+          "stock-mouvements": result.movements,
+          "seuils-alerte": syncAlertCurrents(current["seuils-alerte"], result.materials, result.catalogue),
+        }));
+        void refreshAuditLogs();
+        const liveDetail = input.note?.trim() ? ` — ${input.note.trim()}` : "";
+        notify("Stock retiré", t("toast.stockOut", "{qty} retiré(s) de « {name} » ({reason}){detail}.", { qty: input.quantity, name: existing.name, reason: localizeKnown(locale, input.reason), detail: liveDetail }), "success");
+        return true;
+      } catch (error) {
+        notify("Retrait impossible", error instanceof Error ? error.message : "Le retrait a échoué.", "error");
+        return false;
+      }
     }
     await wait();
     setRecords((current) => ({
@@ -1007,13 +1411,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const detail = input.note?.trim() ? ` — ${input.note.trim()}` : "";
     notify("Stock retiré", t("toast.stockOut", "{qty} retiré(s) de « {name} » ({reason}){detail}.", { qty: input.quantity, name: existing.name, reason: localizeKnown(locale, input.reason), detail }), "success");
     return true;
-  }, [records, notify, t, locale]);
+  }, [records, notify, t, locale, apiLive, refreshAuditLogs]);
 
   const saveSettings = useCallback(async (next: CompanySettings) => {
     if (apiLive) {
       try {
         const saved = await saveSettingsAction(next);
         setSettings(normalizeCompanySettings(saved));
+        void refreshAuditLogs();
         notify("Paramètres enregistrés", "Les règles générales de l’entreprise ont été mises à jour.");
         return;
       } catch (error) {
@@ -1025,19 +1430,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const normalized = normalizeCompanySettings(next);
     setSettings(normalized);
     notify("Paramètres enregistrés", "Les règles générales de l’entreprise ont été mises à jour.");
-  }, [notify, apiLive]);
+  }, [notify, apiLive, refreshAuditLogs]);
 
   const resetSettings = useCallback(() => {
     if (apiLive) {
       void resetSettingsAction().then((saved) => {
         setSettings(normalizeCompanySettings(saved));
+        void refreshAuditLogs();
         notify("Paramètres restaurés", "Les informations NanoPrint de démonstration ont été rétablies.", "info");
       });
       return;
     }
     setSettings(defaultCompanySettings);
     notify("Paramètres restaurés", "Les informations NanoPrint de démonstration ont été rétablies.", "info");
-  }, [notify, apiLive]);
+  }, [notify, apiLive, refreshAuditLogs]);
 
   const saveRole = useCallback(async (role: AccessRole) => {
     const apply = (next: AccessRole) => {
@@ -1056,6 +1462,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (apiLive) {
       try {
         apply(normalizeAccessRoles([await saveRoleAction(role)])[0]);
+        void refreshAuditLogs();
         return;
       } catch (error) {
         notify("Erreur", error instanceof Error ? error.message : "Enregistrement du rôle impossible.", "error");
@@ -1064,7 +1471,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     await wait(350);
     apply(normalizeAccessRoles([role])[0]);
-  }, [notify, t, apiLive]);
+  }, [notify, t, apiLive, refreshAuditLogs]);
 
   const deleteRole = useCallback(async (id: string) => {
     const apply = (remaining: AccessRole[], fallback: AccessRole) => {
@@ -1084,6 +1491,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const fallback = remaining.find((item) => item.id === result.fallback.id) ?? remaining[0];
         if (!fallback) return;
         apply(remaining, fallback);
+        void refreshAuditLogs();
         return;
       } catch (error) {
         notify("Erreur", error instanceof Error ? error.message : "Suppression du rôle impossible.", "error");
@@ -1094,13 +1502,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const remaining = accessRoles.filter((item) => item.id !== id);
     if (remaining.length === accessRoles.length || !remaining.length) return;
     apply(remaining, remaining[0]);
-  }, [accessRoles, notify, apiLive]);
+  }, [accessRoles, notify, apiLive, refreshAuditLogs]);
 
   const resetFeature = useCallback((featureId: string) => {
     if (featureId === "parametres-generaux") {
       if (apiLive) {
         void resetSettingsAction().then((saved) => {
           setSettings(normalizeCompanySettings(saved));
+          void refreshAuditLogs();
           notify("Paramètres restaurés", "Les informations NanoPrint de démonstration ont été rétablies.", "info");
         });
         return;
@@ -1113,6 +1522,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (apiLive) {
         void resetTaxesAction().then((taxes) => {
           setSettings((current) => ({ ...current, taxes }));
+          void refreshAuditLogs();
           notify("Taxes restaurées", "Les taxes de démonstration ont été rétablies.", "info");
         });
         return;
@@ -1130,34 +1540,105 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             ...current,
             "roles-permissions": boot.records["roles-permissions"] ?? [],
           }));
+          void refreshAuditLogs();
           notify("Données restaurées", "Utilisateurs et rôles rechargés depuis la base.", "info");
         });
         return;
       }
       setAccessRoles(defaultAccessRoles);
       setRecords((current) => ({ ...current, "roles-permissions": mockRecords["roles-permissions"] ?? [] }));
-      notify("Données restaurées", "Utilisateurs et rôles de démonstration rétablis.", "info");
+      notify("Données restaurées", "Utilisateurs et rôles réinitialisés.", "info");
       return;
     }
-    if ((featureId === "audit-trail" || featureId === "sauvegardes") && apiLive) {
+    if (featureId === "audit-trail" && apiLive) {
+      void refreshAuditLogs().then(() => {
+        notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
+      });
+      return;
+    }
+    if (featureId === "sauvegardes" && apiLive) {
       void bootstrapAction().then((boot) => {
         if (!boot) return;
         setRecords((current) => ({
           ...current,
-          [featureId]: boot.records[featureId] ?? [],
+          sauvegardes: boot.records.sauvegardes ?? [],
         }));
         notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
       });
       return;
     }
-    if (featureId === "segmentation") {
+    if ((featureId === "calculateur" || featureId === "devis-multi" || featureId === "conversion" || featureId === "statuts-commandes" || featureId === "avenants") && apiLive) {
+      void bootstrapAction().then((boot) => {
+        if (!boot) return;
+        setRecords((current) => ({
+          ...current,
+          calculateur: boot.records.calculateur ?? [],
+          "devis-multi": boot.records["devis-multi"] ?? [],
+          "statuts-commandes": boot.records["statuts-commandes"] ?? [],
+          avenants: boot.records.avenants ?? [],
+        }));
+        void refreshAuditLogs();
+        notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
+      });
+      return;
+    }
+    if (featureId === "calculateur" || featureId === "devis-multi" || featureId === "conversion" || featureId === "statuts-commandes" || featureId === "avenants") {
+      setRecords((current) => ({
+        ...current,
+        calculateur: [],
+        "devis-multi": [],
+        "statuts-commandes": [],
+        avenants: [],
+      }));
+      notify("Données restaurées", "Les devis et commandes ont été vidés (plus de jeu de démonstration).", "info");
+      return;
+    }
+    if ((featureId === "factures" || featureId === "acomptes") && apiLive) {
+      void bootstrapAction().then((boot) => {
+        if (!boot) return;
+        setRecords((current) => ({
+          ...current,
+          factures: boot.records.factures ?? [],
+          acomptes: boot.records.acomptes ?? [],
+          "statuts-commandes": boot.records["statuts-commandes"] ?? [],
+        }));
+        void refreshAuditLogs();
+        notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
+      });
+      return;
+    }
+    if (featureId === "factures" || featureId === "acomptes") {
+      setRecords((current) => ({
+        ...current,
+        factures: [],
+        acomptes: [],
+      }));
+      notify("Données restaurées", "Les factures et acomptes ont été vidés (plus de jeu de démonstration).", "info");
+      return;
+    }
+    if ((featureId === "fiches-clients" || featureId === "contacts-multiples" || featureId === "segmentation") && apiLive) {
+      void bootstrapAction().then((boot) => {
+        if (!boot) return;
+        setClientSectors(boot.clientSectors?.length ? boot.clientSectors : DEFAULT_CLIENT_SECTORS);
+        setRecords((current) => ({
+          ...current,
+          "fiches-clients": boot.records["fiches-clients"] ?? [],
+          "contacts-multiples": boot.records["contacts-multiples"] ?? [],
+        }));
+        void refreshAuditLogs();
+        notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
+      });
+      return;
+    }
+    if (featureId === "fiches-clients" || featureId === "contacts-multiples" || featureId === "segmentation") {
       setClientSectors(DEFAULT_CLIENT_SECTORS);
       setRecords((current) => ({
         ...current,
-        "fiches-clients": mockRecords["fiches-clients"] ?? [],
+        "fiches-clients": [],
+        "contacts-multiples": [],
         segmentation: [],
       }));
-      notify("Données restaurées", "Les secteurs et affectations de démonstration ont été rétablis.", "info");
+      notify("Données restaurées", "Les fiches clients et contacts ont été vidés (plus de jeu de démonstration).", "info");
       return;
     }
     if (featureId === "matieres") {
@@ -1172,24 +1653,99 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return { ...record, priceGrid: seed?.priceGrid ?? "[]" };
         }),
       }));
-      notify("Grilles restaurées", "Les paliers de démonstration ont été rétablis sur les produits du catalogue.", "info");
+      notify("Grilles restaurées", "Les grilles tarifaires ont été réinitialisées.", "info");
+      return;
+    }
+    if (featureId === "fichiers-clients" && apiLive) {
+      void clearClientFileBlobs();
+      void bootstrapAction().then((boot) => {
+        if (!boot) return;
+        setRecords((current) => ({
+          ...current,
+          "fichiers-clients": boot.records["fichiers-clients"] ?? [],
+        }));
+        void refreshAuditLogs();
+        notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
+      });
       return;
     }
     if (featureId === "fichiers-clients") {
       void clearClientFileBlobs();
+      setRecords((current) => ({ ...current, "fichiers-clients": [] }));
+      notify("Données restaurées", "Les fichiers clients ont été vidés (plus de jeu de démonstration).", "info");
+      return;
     }
-    if (featureId === "historique-approvisionnement") {
-      setRecords((current) => ({ ...current, approvisionnement: mockRecords.approvisionnement ?? [] }));
-      notify("Données restaurées", "L’historique d’approvisionnement de démonstration a été rétabli.", "info");
+    if (featureId === "planning-machines" && apiLive) {
+      void bootstrapAction().then((boot) => {
+        if (!boot) return;
+        setRecords((current) => ({
+          ...current,
+          "planning-machines": boot.records["planning-machines"] ?? [],
+          postes: boot.records.postes ?? current.postes,
+          "statuts-commandes": boot.records["statuts-commandes"] ?? current["statuts-commandes"],
+        }));
+        void refreshAuditLogs();
+        notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
+      });
+      return;
+    }
+    if (featureId === "planning-machines") {
+      setRecords((current) => ({ ...current, "planning-machines": [] }));
+      notify("Données restaurées", "Les créneaux ont été vidés (plus de jeu de démonstration).", "info");
+      return;
+    }
+    if ((featureId === "stock-papier" || featureId === "seuils-alerte" || featureId === "inventaire") && apiLive) {
+      void bootstrapAction().then((boot) => {
+        if (!boot) return;
+        setRecords((current) => ({
+          ...current,
+          matieres: boot.records.matieres ?? current.matieres,
+          catalogue: boot.records.catalogue ?? current.catalogue,
+          "seuils-alerte": boot.records["seuils-alerte"] ?? [],
+          inventaire: boot.records.inventaire ?? [],
+          "stock-mouvements": boot.records["stock-mouvements"] ?? [],
+        }));
+        void refreshAuditLogs();
+        notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
+      });
+      return;
+    }
+    if (featureId === "stock-papier" || featureId === "seuils-alerte" || featureId === "inventaire") {
+      setRecords((current) => ({
+        ...current,
+        "seuils-alerte": [],
+        inventaire: [],
+        "stock-mouvements": [],
+      }));
+      notify("Données restaurées", "Les seuils, inventaires et mouvements locaux ont été vidés.", "info");
+      return;
+    }
+    if ((featureId === "fournisseurs" || featureId === "approvisionnement" || featureId === "historique-approvisionnement") && apiLive) {
+      void bootstrapAction().then((boot) => {
+        if (!boot) return;
+        setRecords((current) => ({
+          ...current,
+          fournisseurs: boot.records.fournisseurs ?? [],
+          approvisionnement: boot.records.approvisionnement ?? [],
+          matieres: boot.records.matieres ?? current.matieres,
+        }));
+        void refreshAuditLogs();
+        notify("Données restaurées", "Les données ont été rechargées depuis la base.", "info");
+      });
+      return;
+    }
+    if (featureId === "historique-approvisionnement" || featureId === "approvisionnement") {
+      setRecords((current) => ({ ...current, approvisionnement: [] }));
+      notify("Données restaurées", "L’historique d’approvisionnement a été réinitialisé.", "info");
       return;
     }
     setRecords((current) => ({ ...current, [featureId]: mockRecords[featureId] ?? [] }));
-    notify("Données restaurées", "Le jeu de démonstration de cet écran a été rétabli.", "info");
-  }, [notify, apiLive]);
+    notify("Données restaurées", "Les données de cet écran ont été réinitialisées.", "info");
+  }, [notify, apiLive, refreshAuditLogs]);
 
   const value = useMemo(
-    () => ({ ready, user, records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles, addCatalogueFamily, addWorkshop, renameWorkshop, deleteWorkshop, addMaterialType, renameMaterialType, deleteMaterialType, addMaterialUnit, renameMaterialUnit, deleteMaterialUnit, addClientSector, renameClientSector, deleteClientSector, assignClientsToSector, saveSettings, resetSettings, saveRole, deleteRole, login, logout, createRecord, updateRecord, deleteRecord, convertCalculatorQuote, applyOrderAvenant, issueInvoice, recordDepositPayment, uploadOrderFiles, replaceOrderFile, deleteOrderFile, validateSupply, deleteSupply, withdrawStock, resetFeature, notify, locale, setLocale, t, te, apiLive }),
-    [ready, user, records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles, addCatalogueFamily, addWorkshop, renameWorkshop, deleteWorkshop, addMaterialType, renameMaterialType, deleteMaterialType, addMaterialUnit, renameMaterialUnit, deleteMaterialUnit, addClientSector, renameClientSector, deleteClientSector, assignClientsToSector, saveSettings, resetSettings, saveRole, deleteRole, login, logout, createRecord, updateRecord, deleteRecord, convertCalculatorQuote, applyOrderAvenant, issueInvoice, recordDepositPayment, uploadOrderFiles, replaceOrderFile, deleteOrderFile, validateSupply, deleteSupply, withdrawStock, resetFeature, notify, locale, setLocale, t, te, apiLive],
+    () => ({ ready, user, records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles, addCatalogueFamily, addWorkshop, renameWorkshop, deleteWorkshop, addMaterialType, renameMaterialType, deleteMaterialType, addMaterialUnit, renameMaterialUnit, deleteMaterialUnit, addClientSector, renameClientSector, deleteClientSector, assignClientsToSector, saveSettings, resetSettings, saveRole, deleteRole, login, logout, createRecord, updateRecord, deleteRecord, convertCalculatorQuote, applyOrderAvenant, issueInvoice, recordDepositPayment, uploadOrderFiles, replaceOrderFile, deleteOrderFile, validateSupply, deleteSupply, withdrawStock, resetFeature, notify, refreshAuditLogs, locale, setLocale, t, te, apiLive }),
+    [ready, user, records, catalogueFamilies, workshops, clientSectors, materialTypes, materialUnits, settings, accessRoles, addCatalogueFamily, addWorkshop, renameWorkshop, deleteWorkshop, addMaterialType, renameMaterialType, deleteMaterialType, addMaterialUnit, renameMaterialUnit, deleteMaterialUnit, addClientSector, renameClientSector, deleteClientSector, assignClientsToSector, saveSettings, resetSettings, saveRole, deleteRole, login, logout, createRecord, updateRecord, deleteRecord, convertCalculatorQuote, applyOrderAvenant, issueInvoice, recordDepositPayment, uploadOrderFiles, replaceOrderFile, deleteOrderFile, validateSupply, deleteSupply, withdrawStock, resetFeature, notify, refreshAuditLogs, locale, setLocale, t, te, apiLive],
   );
 
   return (

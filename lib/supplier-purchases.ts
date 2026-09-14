@@ -18,7 +18,8 @@ export function purchasesForSupplier(all: Record<string, MockRecord[]>, supplier
 export const purchaseDetailFields = [
   { key: "reference", label: "Approvisionnement" },
   { key: "supplier", label: "Fournisseur" },
-  { key: "quantity", label: "Quantité" },
+  { key: "quantity", label: "Qté appro" },
+  { key: "qtyInit", label: "Qté init" },
   { key: "amount", label: "Total TTC" },
   { key: "issuedAt", label: "Date" },
   { key: "status", label: "Statut" },

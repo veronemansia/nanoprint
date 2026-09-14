@@ -8,7 +8,7 @@ import {
   purchaseDetailFields,
   purchasesForSupplier,
 } from "@/lib/supplier-purchases";
-import { parseSupplyLines, supplyLineTotal } from "@/lib/supply";
+import { parseSupplyLines, supplyLineTotal, formatSupplyArchive } from "@/lib/supply";
 import { useApp } from "@/components/providers/app-provider";
 import type { CompanySettings } from "@/lib/company-settings";
 import type { MockRecord } from "@/lib/types";
@@ -79,7 +79,7 @@ export function SupplierPurchaseDrawer({
                   <dd>
                     {selectedLines.map((line) => (
                       <span key={line.id} style={{ display: "block" }}>
-                        {line.quantity} {line.unit} · {line.label} · {formatAmount(supplyLineTotal(line), settings)}
+                        {formatSupplyArchive(line)} · {line.label} · {formatAmount(supplyLineTotal(line), settings)}
                       </span>
                     ))}
                   </dd>
@@ -98,7 +98,7 @@ export function SupplierPurchaseDrawer({
                   const total = historyTotal(record);
                   const lines = parseSupplyLines(record.lines);
                   const summary = lines.length
-                    ? lines.map((line) => `${line.quantity} ${line.unit} ${line.label}`).join(" · ")
+                    ? lines.map((line) => `${formatSupplyArchive(line)} ${line.label}`).join(" · ")
                     : historyLineDescription(record);
                   return (
                     <li key={record.id}>

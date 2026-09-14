@@ -60,7 +60,7 @@ export const defaultCompanySettings: CompanySettings = {
   openingHours: "07h30 – 18h30",
   paperUnit: "Rame (500 feuilles) et feuille",
   currencies: [
-    { id: "cur-xof", label: "Franc CFA", symbol: "F CFA", decimals: 0, isDefault: true },
+    { id: "cur-xof", label: "Franc", symbol: "", decimals: 0, isDefault: true },
     { id: "cur-eur", label: "Euro", symbol: "€", decimals: 2, isDefault: false },
     { id: "cur-usd", label: "Dollar US", symbol: "$", decimals: 2, isDefault: false },
   ],
@@ -96,11 +96,24 @@ export function newTax(patch: Partial<TaxSetting> = {}): TaxSetting {
 export function defaultCurrency(settings: CompanySettings): CurrencySetting {
   return settings.currencies.find((item) => item.isDefault) ?? settings.currencies[0] ?? {
     id: "cur-fallback",
-    label: "Franc CFA",
-    symbol: "F CFA",
+    label: "Franc",
+    symbol: "",
     decimals: 0,
     isDefault: true,
   };
+}
+
+function stripCfaLabel(value: string) {
+  return value
+    .replace(/\bfrancs?\s*CFA\b/gi, "Franc")
+    .replace(/\bF\s*CFA\b/gi, "")
+    .replace(/\bCFA\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stripCfaSymbol(value: string) {
+  return value.replace(/\bF\s*CFA\b/gi, "").replace(/\bCFA\b/gi, "").replace(/\s+/g, " ").trim();
 }
 
 export function formatAmount(value: number, _settings?: CompanySettings) {
@@ -116,8 +129,8 @@ export function normalizeCompanySettings(raw: unknown): CompanySettings {
   const currencies = Array.isArray(row.currencies)
     ? row.currencies.map((item, index) => ({
         id: String(item.id || `cur-${index}`),
-        label: String(item.label || "").trim() || `Devise ${index + 1}`,
-        symbol: String(item.symbol || "").trim(),
+        label: stripCfaLabel(String(item.label || "").trim()) || `Devise ${index + 1}`,
+        symbol: stripCfaSymbol(String(item.symbol || "").trim()),
         decimals: Math.min(4, Math.max(0, Number(item.decimals) || 0)),
         isDefault: Boolean(item.isDefault),
       }))

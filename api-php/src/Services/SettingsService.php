@@ -140,8 +140,8 @@ final class SettingsService
             $stmt->execute([
                 'id' => (string) ($item['id'] ?? Uuid::v4()),
                 'company_id' => $companyId,
-                'label' => trim((string) ($item['label'] ?? 'Devise')),
-                'symbol' => trim((string) ($item['symbol'] ?? '')),
+                'label' => RecordMapper::currencyLabel($item['label'] ?? 'Devise') ?: 'Devise',
+                'symbol' => RecordMapper::currencySymbol($item['symbol'] ?? ''),
                 'decimals' => min(4, max(0, (int) ($item['decimals'] ?? 0))),
                 'is_default' => $isDefault ? 1 : 0,
                 'sort_order' => $index,

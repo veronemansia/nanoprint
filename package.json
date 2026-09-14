@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "php:serve": "php -S 127.0.0.1:8088 -t api-php/public",
+    "php:serve": "php -d upload_max_filesize=80M -d post_max_size=82M -S 127.0.0.1:8088 -t api-php/public",
     "php:install": "php api-php/bin/install.php"
   },
   "dependencies": {

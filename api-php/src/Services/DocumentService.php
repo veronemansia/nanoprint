@@ -78,10 +78,10 @@ final class DocumentService
 
     public function delete(AuthContext $auth, string $id, string $ip): void
     {
-        $this->one($auth, $id);
+        $row = $this->one($auth, $id);
         $this->pdo->prepare('DELETE FROM document_templates WHERE id = :id AND company_id = :company_id')
             ->execute(['id' => $id, 'company_id' => $auth->companyId]);
-        $this->audit->record($auth, 'document.delete', 'configuration', 'modeles-documents', 'document', $id, '', $ip);
+        $this->audit->record($auth, 'document.delete', 'configuration', 'modeles-documents', 'document', $id, (string) $row['name'], $ip);
     }
 
     private function one(AuthContext $auth, string $id): array

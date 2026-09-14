@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight, Check, ChevronLeft, ChevronRight, Download, Ellipsis, Eye, FileDown,
@@ -28,6 +28,9 @@ import { SupplyOrders } from "@/components/modules/supply-orders";
 import { SupplyHistory } from "@/components/modules/supply-history";
 import { StockFollow } from "@/components/modules/stock-follow";
 import { Taxes } from "@/components/modules/taxes";
+import { ReportsWorkspace } from "@/components/modules/reports-workspace";
+import { downloadCsv } from "@/lib/reports";
+import { exportReportAction } from "@/app/actions/data";
 import { countHistoryItems, historyForClient } from "@/lib/client-history";
 import { catalogueKindOf, parsePricedOptions, parseProductMaterials, parseQuantityTiers, summarizePricedOptions, summarizeProductMaterials, summarizeQuantityTiers, type CatalogueKind } from "@/lib/catalogue";
 import { formatAmount } from "@/lib/company-settings";
@@ -79,14 +82,14 @@ function displayValue(value: string | number, key: string, settings: CompanySett
 }
 
 function statusTone(status: string) {
-  if (/conforme|payée|actif|disponible|livrée|terminé|reçu|validé|présent|signé|or|réussie|complète|publié|imputé|récupéré/i.test(status)) return "green";
+  if (/conforme|payée|actif|disponible|livrée|terminé|reçu|validé|présent|signé|or|réussie|complète|publié|imputé|récupéré|ok|régularisé/i.test(status)) return "green";
   if (/retard|panne|rupture|bloqué|non conforme|échec|suspendu|critique|expiré|refusé/i.test(status)) return "magenta";
   if (/attente|bas|partiel|maintenance|correction|reprise|préparer|brouillon|alerte|urgence/i.test(status)) return "yellow";
   return "cyan";
 }
 
 export function ModuleWorkspace({ module, feature }: { module: ModuleDefinition; feature: FeatureDefinition }) {
-  const { records, createRecord, updateRecord, deleteRecord, resetFeature, notify, user, settings, t, locale } = useApp();
+  const { records, createRecord, updateRecord, deleteRecord, resetFeature, notify, user, settings, t, locale, refreshAuditLogs, apiLive } = useApp();
   const uiModule = useMemo(() => localizeModule(module, t), [module, t]);
   const uiFeature = useMemo(() => localizeFeature(feature, t), [feature, t]);
   const [query, setQuery] = useState("");
@@ -124,7 +127,12 @@ export function ModuleWorkspace({ module, feature }: { module: ModuleDefinition;
   const isOrders = feature.id === "statuts-commandes";
   const isSuppliers = feature.id === "fournisseurs";
   const isMaterials = feature.id === "matieres";
+  const isReporting = module.id === "reporting";
   const readOnly = isAudit || isHistory;
+  useEffect(() => {
+    if (!isAudit || !apiLive) return;
+    void refreshAuditLogs();
+  }, [isAudit, apiLive, refreshAuditLogs]);
   const sourceId = isTarifs ? "catalogue" : isHistory ? "fiches-clients" : feature.id;
   const rows = useMemo(() => records[sourceId] ?? [], [records, sourceId]);
   const money = (amount: number) => formatAmount(amount, settings);
@@ -189,6 +197,20 @@ export function ModuleWorkspace({ module, feature }: { module: ModuleDefinition;
     anchor.click();
     URL.revokeObjectURL(url);
     notify("Export prêt", t("toast.exported", "{n} ligne(s) exportées.", { n: filtered.length }), "info");
+  }
+
+  async function exportAudit() {
+    setPending(true);
+    try {
+      const file = await exportReportAction("audit");
+      downloadCsv(file.filename, file.csv);
+      notify("Export prêt", t("toast.exported", "Journal d’audit exporté."), "info");
+    } catch (error) {
+      exportCsv();
+      notify("Export local", error instanceof Error ? error.message : t("ws.exportLocal", "Export généré depuis le tableau affiché."), "info");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function runBackup() {
@@ -521,6 +543,32 @@ export function ModuleWorkspace({ module, feature }: { module: ModuleDefinition;
     );
   }
 
+  if (isReporting) {
+    return (
+      <div className="page-content module-page">
+        <section className="page-heading">
+          <div>
+            <span className="eyebrow">{uiModule.label}</span>
+            <h1>{uiFeature.title}</h1>
+            <p>{uiFeature.description}</p>
+          </div>
+        </section>
+        <nav className="feature-tabs" aria-label={t("shell.featuresOf", "Fonctionnalités {label}", { label: uiModule.shortLabel })}>
+          {uiModule.features.map((item) => (
+            <Link
+              key={item.id}
+              href={`/admin/${module.id}/${item.id}`}
+              className={item.id === feature.id ? "active" : ""}
+            >
+              {item.title}
+            </Link>
+          ))}
+        </nav>
+        <ReportsWorkspace feature={feature} />
+      </div>
+    );
+  }
+
   return (
     <div className="page-content module-page">
       <section className="page-heading">
@@ -530,6 +578,7 @@ export function ModuleWorkspace({ module, feature }: { module: ModuleDefinition;
           <p>{uiFeature.description}</p>
         </div>
         <div className="heading-actions">
+          {isAudit && <button className="button button-secondary" disabled={pending} onClick={() => void exportAudit()}><Download size={17} /> {t("common.export", "Exporter")}</button>}
           {!readOnly && <button className="button button-secondary" onClick={exportCsv}><Download size={17} /> {t("common.export", "Exporter")}</button>}
           {isBackup && (
             <button className="button button-primary" disabled={pending} onClick={runBackup}>
@@ -957,8 +1006,10 @@ function RecordFormModal({ feature, record, pending, onClose, onSubmit }: {
     const formData = new FormData(event.currentTarget);
     const values: Record<string, string | number> = {};
     for (const field of feature.fields) {
-      if (isInventory && field.key === "gap") {
-        values.gap = computedGap;
+      if (isInventory && (field.key === "gap" || field.key === "qtyInit" || field.key === "qtySolde")) {
+        if (field.key === "gap") values.gap = computedGap;
+        if (field.key === "qtyInit") values.qtyInit = systemQty;
+        if (field.key === "qtySolde") values.qtySolde = physicalQty;
         continue;
       }
       const raw = String(formData.get(field.key) ?? "").trim();
@@ -1006,6 +1057,10 @@ function RecordFormModal({ feature, record, pending, onClose, onSubmit }: {
                   <input name={field.key} type="number" min={0} step={1} value={physicalQty} onChange={(event) => setPhysicalQty(Math.max(0, Math.round(Number(event.target.value) || 0)))} />
                 ) : isInventory && field.key === "gap" ? (
                   <input name={field.key} type="number" value={computedGap} readOnly aria-readonly="true" />
+                ) : isInventory && field.key === "qtyInit" ? (
+                  <input name={field.key} type="number" value={systemQty} readOnly aria-readonly="true" />
+                ) : isInventory && field.key === "qtySolde" ? (
+                  <input name={field.key} type="number" value={physicalQty} readOnly aria-readonly="true" />
                 ) : field.type === "select" ? (
                   <select name={field.key} defaultValue={String(record?.[field.key] ?? field.options?.[0] ?? "")}>
                     {field.options?.map((option) => <option key={option}>{option}</option>)}
@@ -1025,6 +1080,9 @@ function RecordFormModal({ feature, record, pending, onClose, onSubmit }: {
               </select>
             </label>
           </div>
+          {isInventory && (
+            <p className="settings-hint">Init {systemQty} · Physique {physicalQty} · Solde {physicalQty}</p>
+          )}
           {error && <div className="form-error" role="alert">{error}</div>}
           <div className="modal-actions">
             <button className="button button-secondary" type="button" onClick={onClose}>{t("common.cancel", "Annuler")}</button>

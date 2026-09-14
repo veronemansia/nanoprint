@@ -67,7 +67,7 @@ final class UserService
             'password_hash' => password_hash($password, PASSWORD_DEFAULT),
             'status' => $status,
         ]);
-        $this->audit->record($auth, 'user.create', 'utilisateurs', 'roles-permissions', 'user', $id, $reference, $ip);
+        $this->audit->record($auth, 'user.create', 'utilisateurs', 'roles-permissions', 'user', $id, $reference . ' · ' . $name, $ip);
         return $this->one($auth, $id);
     }
 
@@ -140,7 +140,7 @@ final class UserService
         }
         $this->pdo->prepare('DELETE FROM users WHERE id = :id AND company_id = :company_id')
             ->execute(['id' => $id, 'company_id' => $auth->companyId]);
-        $this->audit->record($auth, 'user.delete', 'utilisateurs', 'roles-permissions', 'user', $id, (string) $row['reference'], $ip);
+        $this->audit->record($auth, 'user.delete', 'utilisateurs', 'roles-permissions', 'user', $id, trim((string) $row['reference'] . ' · ' . (string) $row['name']), $ip);
     }
 
     public function nextReference(string $companyId): string

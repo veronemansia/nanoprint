@@ -9,6 +9,12 @@ final class Request
     /** @var array<string, string> */
     public array $params = [];
 
+    /**
+     * @param array<string, mixed> $query
+     * @param array<string, string> $headers
+     * @param array<string, mixed> $body
+     * @param list<array{name: string, tmpName: string, size: int, error: int}> $files
+     */
     public function __construct(
         public readonly string $method,
         public readonly string $path,
@@ -17,6 +23,7 @@ final class Request
         public readonly array $body,
         public readonly string $ip,
         public readonly string $userAgent,
+        public readonly array $files = [],
     ) {
     }
 
@@ -45,11 +52,17 @@ final class Request
             $headers['content-type'] = (string) $_SERVER['CONTENT_TYPE'];
         }
 
-        $raw = file_get_contents('php://input') ?: '';
+        $contentType = strtolower($headers['content-type'] ?? '');
+        $multipart = str_contains($contentType, 'multipart/form-data');
         $decoded = [];
-        if ($raw !== '') {
-            $json = json_decode($raw, true);
-            $decoded = is_array($json) ? $json : [];
+        if ($multipart) {
+            $decoded = is_array($_POST) ? $_POST : [];
+        } else {
+            $raw = file_get_contents('php://input') ?: '';
+            if ($raw !== '') {
+                $json = json_decode($raw, true);
+                $decoded = is_array($json) ? $json : [];
+            }
         }
 
         return new self(
@@ -59,8 +72,38 @@ final class Request
             $headers,
             $decoded,
             (string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? ''),
-            substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+            substr((string) ($_SERVER['USER_AGENT'] ?? $_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+            self::uploadedFiles(),
         );
+    }
+
+    /**
+     * @return list<array{name: string, tmpName: string, size: int, error: int}>
+     */
+    private static function uploadedFiles(): array
+    {
+        $bag = $_FILES['files'] ?? $_FILES['file'] ?? null;
+        if (!is_array($bag)) {
+            return [];
+        }
+        if (is_array($bag['name'] ?? null)) {
+            $out = [];
+            foreach ($bag['name'] as $index => $name) {
+                $out[] = [
+                    'name' => (string) $name,
+                    'tmpName' => (string) ($bag['tmp_name'][$index] ?? ''),
+                    'size' => (int) ($bag['size'][$index] ?? 0),
+                    'error' => (int) ($bag['error'][$index] ?? UPLOAD_ERR_NO_FILE),
+                ];
+            }
+            return $out;
+        }
+        return [[
+            'name' => (string) ($bag['name'] ?? ''),
+            'tmpName' => (string) ($bag['tmp_name'] ?? ''),
+            'size' => (int) ($bag['size'] ?? 0),
+            'error' => (int) ($bag['error'] ?? UPLOAD_ERR_NO_FILE),
+        ]];
     }
 
     public function header(string $name): string

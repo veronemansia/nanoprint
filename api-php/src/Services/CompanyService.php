@@ -152,7 +152,7 @@ final class CompanyService
         ]);
 
         $currencies = [
-            ['cur-xof', 'Franc CFA', 'F CFA', 0, 1],
+            ['cur-xof', 'Franc', '', 0, 1],
             ['cur-eur', 'Euro', '€', 2, 0],
             ['cur-usd', 'Dollar US', '$', 2, 0],
         ];
@@ -208,6 +208,10 @@ final class CompanyService
         $this->insertNamed($companyId, 'workshops', ['Impression', 'Finition', 'Façonnage', 'Expédition']);
         $this->insertNamed($companyId, 'material_types', ['Papier', 'Encre', 'Plaque', 'Vernis', 'Blanchet', 'Film']);
         $this->insertNamed($companyId, 'material_units', ['rame', 'feuille', 'kg', 'fût 5 kg', 'litre', 'bidon 20 L', 'plaque', 'jeu', 'mètre', 'rouleau']);
+        $this->insertNamed($companyId, 'client_sectors', [
+            'Entreprises', 'Particuliers', 'Écoles', 'Restaurants', 'Hôtels',
+            'Associations', 'Agences de communication', 'Administrations',
+        ]);
         $this->insertNamed($companyId, 'catalogue_families', [
             'Cartes de visite', 'Flyers', 'Affiches', 'Brochures', 'Catalogues', 'Invitations', 'Calendriers',
             'T-shirts imprimés', 'Bâches', 'Stickers', 'Enveloppes', 'Papier à en-tête', 'Reliures',

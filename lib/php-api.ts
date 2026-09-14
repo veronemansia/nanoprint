@@ -17,10 +17,15 @@ function apiUrl(path: string) {
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+export function phpApiUrl(path: string) {
+  return apiUrl(path);
+}
+
 export async function phpFetch<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
-  if (init.body && !headers.has("Content-Type")) {
+  const form = typeof FormData !== "undefined" && init.body instanceof FormData;
+  if (init.body && !form && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   const session = token ?? (await cookies()).get(SESSION_COOKIE)?.value;

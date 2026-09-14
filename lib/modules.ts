@@ -235,6 +235,8 @@ export const modules: ModuleDefinition[] = [
         { key: "physicalQty", label: "Stock physique", type: "number", required: true },
         { key: "gap", label: "Écart", type: "number" },
         { key: "reason", label: "Cause", type: "textarea" },
+        { key: "qtyInit", label: "Qté init", type: "number" },
+        { key: "qtySolde", label: "Qté solde", type: "number" },
       ]),
     ],
   },

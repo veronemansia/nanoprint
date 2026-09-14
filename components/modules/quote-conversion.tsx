@@ -53,6 +53,7 @@ export function QuoteConversion() {
   const orders = records["statuts-commandes"] ?? [];
   const clients = records["fiches-clients"] ?? [];
   const catalogue = records.catalogue ?? [];
+  const materials = records.matieres ?? [];
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [error, setError] = useState("");
@@ -79,13 +80,13 @@ export function QuoteConversion() {
   const snap = selected ? inspectQuote(selected, clients, catalogue, settings) : null;
   const existingOrder = selected ? orderForQuote(orders, selected) : undefined;
   const block = selected
-    ? conversionBlockReason(selected, orders, clients, catalogue, settings)
+    ? conversionBlockReason(selected, orders, clients, catalogue, settings, materials)
     : "";
   const money = (amount: number) => formatAmount(amount, settings);
 
   async function convert() {
     if (!selected) return;
-    const built = buildConvertedOrder(selected, orders, clients, catalogue, settings);
+    const built = buildConvertedOrder(selected, orders, clients, catalogue, settings, materials);
     if (built.error || !built.values) {
       setError(te(built.error || "Conversion impossible."));
       return;

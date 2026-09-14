@@ -193,6 +193,17 @@ a { color: inherit; text-decoration: none; }
 .status-badge { width: fit-content; display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }.status-badge i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }.status-cyan { color: #087e97; background: #e5f7fa; }.status-yellow { color: #926c00; background: #fff5d2; }.status-magenta { color: #b30e59; background: #fce7f0; }.status-green { color: #23795b; background: #e7f4ee; }
 .deadlines-panel { display: flex; flex-direction: column; }.deadline-stat { flex: 1; min-height: 52px; display: flex; align-items: center; gap: 11px; border-top: 1px solid var(--line-soft); }.deadline-stat:first-of-type { margin-top: 9px; }.deadline-stat .metric-icon { width: 30px; height: 30px; }.deadline-stat div { display: flex; flex-direction: column; gap: 3px; }.deadline-stat strong { font-size: 9px; }.deadline-stat div span { color: var(--muted); font-size: 7px; }
 
+.report-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 16px; padding: 12px 14px; background: #f6f5f1; border: 1px solid var(--line-soft); border-radius: 8px; }
+.report-toolbar .field { margin: 0; min-width: 168px; }
+.report-note { margin: 8px 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.report-page .panel { margin-bottom: 13px; }
+.report-page .panel .metric-grid { margin-top: 12px; margin-bottom: 0; }
+.export-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.export-card { padding: 16px; display: flex; flex-direction: column; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.export-card strong { font-family: var(--font-saira-condensed); font-size: 16px; letter-spacing: -.03em; }
+.export-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.export-card .button { align-self: flex-start; margin-top: 6px; }
+
 /* Modules */
 .feature-strip, .data-section { min-width: 0; padding: 19px; margin-bottom: 13px; overflow: visible; }.section-title { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 15px; }.section-title > span { color: var(--muted); font-size: 8px; }
 .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }.feature-card { min-height: 124px; padding: 14px; display: flex; flex-direction: column; align-items: flex-start; text-align: left; background: #fafaf8; border: 1px solid var(--line-soft); border-radius: 8px; cursor: pointer; transition: .17s ease; }.feature-card:hover { transform: translateY(-2px); border-color: #c4c2ba; box-shadow: 0 9px 24px rgba(30,32,29,.06); background: #fff; }
@@ -611,6 +622,7 @@ a { color: inherit; text-decoration: none; }
   .mobile-close { display: grid; margin-left: auto; color: #fff; cursor: pointer; }.mobile-menu { display: grid; cursor: pointer; }
   .admin-main { width: 100%; max-width: 100%; margin-left: 0; }.topbar { padding: 0 20px; }.breadcrumb span, .breadcrumb i, .user-copy, .user-menu-button > svg { display: none; }
   .page-content { padding-inline: 20px; }.dashboard-grid, .dashboard-grid.lower { grid-template-columns: 1fr; }
+  .export-cards { grid-template-columns: 1fr; }
   .settings-layout { grid-template-columns: 1fr; }.settings-preview { position: static; }
   .seg-groups { grid-template-columns: 1fr; }
   .contacts-companies { grid-template-columns: 1fr; }

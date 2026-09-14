@@ -43,10 +43,36 @@ final class AuthService
         if (!$ok) {
             $this->trackAttempt($email);
             FileLogger::info('auth.login_failed', $email, ['ip' => $ip]);
+            if ($row) {
+                $this->audit->recordForCompany(
+                    (string) $row['company_id'],
+                    (string) $row['id'],
+                    'auth.login_failed',
+                    'utilisateurs',
+                    'roles-permissions',
+                    'user',
+                    (string) $row['id'],
+                    $email,
+                    $ip,
+                    $email,
+                );
+            }
             throw HttpException::unauthorized('E-mail ou mot de passe incorrect.');
         }
 
         if (($row['status'] ?? '') === 'Suspendu') {
+            $this->audit->recordForCompany(
+                (string) $row['company_id'],
+                (string) $row['id'],
+                'auth.login_blocked',
+                'utilisateurs',
+                'roles-permissions',
+                'user',
+                (string) $row['id'],
+                $email . ' — compte suspendu',
+                $ip,
+                $email,
+            );
             throw HttpException::forbidden('Ce compte est suspendu.');
         }
 
@@ -55,7 +81,16 @@ final class AuthService
         $this->pdo->prepare('UPDATE users SET last_login_at = NOW() WHERE id = :id')->execute(['id' => $row['id']]);
 
         $auth = $this->contextFromUserId((string) $row['id']);
-        $this->audit->record($auth, 'auth.login', 'utilisateurs', 'roles-permissions', 'user', $auth->userId, $auth->email, $ip);
+        $this->audit->record(
+            $auth,
+            'auth.login',
+            'utilisateurs',
+            'roles-permissions',
+            'user',
+            $auth->userId,
+            $auth->name . ' · ' . $auth->email,
+            $ip,
+        );
 
         return ['user' => $auth->toUser(), 'token' => $token];
     }
@@ -65,7 +100,16 @@ final class AuthService
         try {
             $userId = $this->sessions->userIdFor($token);
             $auth = $this->contextFromUserId($userId);
-            $this->audit->record($auth, 'auth.logout', 'utilisateurs', 'roles-permissions', 'user', $auth->userId, $auth->email, $ip);
+            $this->audit->record(
+                $auth,
+                'auth.logout',
+                'utilisateurs',
+                'roles-permissions',
+                'user',
+                $auth->userId,
+                $auth->name . ' · ' . $auth->email,
+                $ip,
+            );
         } catch (HttpException) {
             // already invalid
         }

@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "80mb",
+    },
+    proxyClientMaxBodySize: "80mb",
+  },
   async redirects() {
     return [
       { source: "/admin/achats/bons-achat", destination: "/admin/achats/approvisionnement", permanent: false },

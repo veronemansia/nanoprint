@@ -30,7 +30,7 @@ function formatDue(iso: string) {
 }
 
 export function OrderClientFiles() {
-  const { records, settings, uploadOrderFiles, replaceOrderFile, deleteOrderFile, te } = useApp();
+  const { records, settings, uploadOrderFiles, replaceOrderFile, deleteOrderFile, te, apiLive } = useApp();
   const orders = records["statuts-commandes"] ?? [];
   const quotes = records.calculateur ?? [];
   const clients = records["fiches-clients"] ?? [];
@@ -103,6 +103,20 @@ export function OrderClientFiles() {
   async function onDownload(item: MockRecord) {
     if (!Number(item.stored)) {
       setError(te("Ce fichier de démonstration n’est pas stocké ici. Déposez une version corrigée pour le conserver."));
+      return;
+    }
+    if (apiLive) {
+      try {
+        const response = await fetch(`/api/order-files/${encodeURIComponent(item.id)}/download`);
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+          setError(payload.error?.message || te("Le contenu du fichier est introuvable. Déposez-le à nouveau."));
+          return;
+        }
+        downloadBlob(await response.blob(), String(item.name || "fichier"));
+      } catch {
+        setError(te("Le contenu du fichier est introuvable. Déposez-le à nouveau."));
+      }
       return;
     }
     const blob = await getClientFileBlob(item.id);
@@ -189,7 +203,7 @@ export function OrderClientFiles() {
                     <button type="button" className={item.id === selected?.id ? "is-active" : ""} onClick={() => selectOrder(item)}>
                       <strong>{item.reference}</strong>
                       <span>{item.client || item.name}</span>
-                      <small>{money(Number(item.amount) || 0)} F CFA</small>
+                      <small>{money(Number(item.amount) || 0)}</small>
                       <em className={`status-badge status-${statusTone(label)}`}>
                         <i />
                         {label}

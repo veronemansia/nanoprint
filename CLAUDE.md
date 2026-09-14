@@ -224,7 +224,7 @@ Tu dois déterminer précisément :
 
 # 7. BASE DE DONNÉES
 
-Avant de créer les tables SQL, tu dois analyser toutes les interfaces de `/admin/utilisateurs/`.
+Avant de créer les tables SQL, tu dois analyser toutes les interfaces de `/admin/stocks/`.
 
 Pour chaque module, identifie :
 
@@ -359,7 +359,7 @@ Tu dois travailler progressivement.
 
 Nous allons commencer UNIQUEMENT par :
 
-/admin/utilisateurs/
+/admin/stocks/
 
 Tu dois analyser TOUS les modules présents dans ce dossier avant de commencer l’implémentation.
 
@@ -380,7 +380,7 @@ Commence par analyser :
 
 ## ÉTAPE 2 — CARTOGRAPHIE
 
-Pour chaque module de `/admin/utilisateurs/`, crée une cartographie :
+Pour chaque module de `/admin/stocks/`, crée une cartographie :
 
 Module
 → Page
@@ -421,7 +421,7 @@ Explique le rôle de chaque couche.
 
 ## ÉTAPE 5 — ARCHITECTURE NEXT.JS
 
-Explique comment chaque page de `/admin/utilisateurs/` récupérera et modifiera les données.
+Explique comment chaque page de `/admin/stocks/` récupérera et modifiera les données.
 
 Précise notamment :
 
@@ -448,7 +448,7 @@ AVANT DE MODIFIER LE MOINDRE FICHIER :
 
 1. analyse le projet ;
 2. consulte les documentations Next.js indiquées ;
-3. identifie les modules de `/admin/utilisateurs/` ;
+3. identifie les modules de `/admin/stocks/` ;
 4. comprends les mocks ;
 5. comprends les formulaires ;
 6. comprends les tableaux ;
@@ -475,7 +475,7 @@ Elle doit contenir :
 
 Ce que tu as trouvé dans le projet.
 
-## B. Modules de `/admin/utilisateurs/`
+## B. Modules de `/admin/stocks/`
 
 Liste complète des modules détectés.
 
@@ -606,7 +606,7 @@ BDD → Backend PHP sécurisé → API → intégration Next.js → données ré
 
 Commence maintenant par analyser le projet et particulièrement :
 
-/admin/utilisateurs/
+/admin/stocks/
 
 Consulte également les documentations Next.js indiquées plus haut.
 

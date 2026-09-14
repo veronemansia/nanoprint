@@ -9,11 +9,14 @@ import { printQuoteHtml, wrapDocumentPreview } from "@/lib/document-template";
 import { renderSupplyDeliveryHtml } from "@/lib/supply-document";
 import {
   addMaterialToCart,
+  formatSupplyArchive,
   materialStock,
   setCartQuantity,
   supplyBlockReason,
   supplyLineTotal,
+  supplyQtyAppro,
   supplyTotals,
+  withSupplyArchive,
   type SupplyLine,
 } from "@/lib/supply";
 import type { MockRecord } from "@/lib/types";
@@ -135,7 +138,7 @@ function SearchSelect({
 }
 
 export function SupplyOrders() {
-  const { records, settings, validateSupply, te, t } = useApp();
+  const { records, settings, validateSupply, te } = useApp();
   const suppliers = records.fournisseurs ?? [];
   const materials = records.matieres ?? [];
   const [supplierId, setSupplierId] = useState("");
@@ -182,7 +185,7 @@ export function SupplyOrders() {
         const unit = String(item.unit || "u");
         return {
           item,
-          hint: `Stock ${qtyFmt.format(stock)} ${unit}`,
+          hint: `Qté init ${qtyFmt.format(stock)} ${unit}`,
         };
       });
   }, [materials, materialQuery]);
@@ -203,18 +206,7 @@ export function SupplyOrders() {
   }
 
   function pickMaterial(item: MockRecord) {
-    const stock = materialStock(item);
-    const existing = lines.find((line) => line.materialId === item.id);
-    const unit = String(item.unit || "u");
     setMaterialQuery("");
-    if (stock < 1) {
-      setError(t("supply.outOfStock", "« {name} » est en rupture. Impossible de l’ajouter.", { name: item.name }));
-      return;
-    }
-    if (existing && existing.quantity >= stock) {
-      setError(t("supply.qtyMax", "La quantité ne peut pas dépasser le stock ({qty} {unit}).", { qty: qtyFmt.format(stock), unit }));
-      return;
-    }
     setLines((current) => addMaterialToCart(current, item));
     setError("");
   }
@@ -239,11 +231,10 @@ export function SupplyOrders() {
         return;
       }
       const party = suppliers.find((item) => item.id === supplierId);
-      const createdLines = lines;
       setLines([]);
       setMaterialQuery("");
       setPreview({
-        html: renderSupplyDeliveryHtml(created, party, settings, createdLines),
+        html: renderSupplyDeliveryHtml(created, party, settings),
         title: created.reference,
       });
     } catch {
@@ -303,7 +294,7 @@ export function SupplyOrders() {
           </div>
 
           {lines.length === 0 ? (
-            <p className="settings-hint">{te("Choisissez une matière : elle s’ajoute avec le prix d’achat, le prix de vente et le stock actuel.")}</p>
+            <p className="settings-hint">{te("Choisissez une matière : la quantité initiale, l’appro et le solde sont archivés à la validation.")}</p>
           ) : (
             <div className="data-table-wrap">
               <table className="data-table supply-cart">
@@ -312,7 +303,9 @@ export function SupplyOrders() {
                     <th>{te("Matière")}</th>
                     <th>{te("PA")}</th>
                     <th>{te("PV")}</th>
-                    <th>{te("Qté")}</th>
+                    <th>{te("Qté init")}</th>
+                    <th>{te("Qté appro")}</th>
+                    <th>{te("Qté solde")}</th>
                     <th>{te("Total")}</th>
                     <th><span className="sr-only">{te("Retirer")}</span></th>
                   </tr>
@@ -320,34 +313,31 @@ export function SupplyOrders() {
                 <tbody>
                   {lines.map((line) => {
                     const stock = stockOf(line.materialId);
+                    const archived = withSupplyArchive(line, stock);
                     return (
                       <tr key={line.id}>
                         <td>
                           <strong>{line.label}</strong>
-                          <small className="supply-stock">Stock {qtyFmt.format(stock)} {line.unit || "u"}</small>
+                          <small className="supply-stock">{formatSupplyArchive(archived)}</small>
                         </td>
                         <td className="is-muted">{money(line.unitPrice)}</td>
                         <td className="is-muted">{money(sellPriceOf(line))}</td>
+                        <td>{qtyFmt.format(archived.qtyInit)}</td>
                         <td>
                           <input
                             type="number"
                             min={1}
-                            max={stock}
                             step={1}
-                            value={line.quantity}
-                            aria-label={`Quantité ${line.label}, stock ${stock}`}
+                            value={supplyQtyAppro(line) || ""}
+                            aria-label={`Quantité approvisionnement ${line.label}`}
                             onChange={(event) => {
-                              const next = Number(event.target.value);
-                              if (next > stock) {
-                                setError(t("supply.qtyMax", "La quantité ne peut pas dépasser le stock ({qty} {unit}).", { qty: qtyFmt.format(stock), unit: line.unit || "u" }));
-                              } else {
-                                setError("");
-                              }
-                              setLines((current) => setCartQuantity(current, line.id, next, stock));
+                              setError("");
+                              setLines((current) => setCartQuantity(current, line.id, Number(event.target.value), stock));
                             }}
                           />
                         </td>
-                        <td><b>{money(supplyLineTotal(line))}</b></td>
+                        <td><b>{qtyFmt.format(archived.qtySolde)}</b></td>
+                        <td><b>{money(supplyLineTotal(archived))}</b></td>
                         <td>
                           <button type="button" className="icon-button danger" title={te("Retirer")} onClick={() => setLines((current) => current.filter((item) => item.id !== line.id))}>
                             <Trash2 size={16} />

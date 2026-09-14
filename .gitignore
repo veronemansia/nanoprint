@@ -38,6 +38,8 @@ yarn-error.log*
 # PHP API
 api-php/storage/logs/*.log
 api-php/storage/backups/**/*.sql
+api-php/storage/client-files/**
+!api-php/storage/client-files/.gitkeep
 api-php/.env
 
 # vercel

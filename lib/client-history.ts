@@ -8,11 +8,11 @@ export type HistoryGroup = {
   items: MockRecord[];
 };
 
-const GROUPS: { kind: HistoryKind; label: string; source: string }[] = [
-  { kind: "devis", label: "Devis", source: "devis-multi" },
-  { kind: "commande", label: "Commandes", source: "statuts-commandes" },
-  { kind: "facture", label: "Factures", source: "factures" },
-  { kind: "acompte", label: "Acomptes", source: "acomptes" },
+const GROUPS: { kind: HistoryKind; label: string; sources: string[] }[] = [
+  { kind: "devis", label: "Devis", sources: ["devis-multi", "calculateur"] },
+  { kind: "commande", label: "Commandes", sources: ["statuts-commandes"] },
+  { kind: "facture", label: "Factures", sources: ["factures"] },
+  { kind: "acompte", label: "Acomptes", sources: ["acomptes"] },
 ];
 
 export const historyItemFields: Record<HistoryKind, { key: string; label: string }[]> = {
@@ -59,8 +59,12 @@ export const historyItemFields: Record<HistoryKind, { key: string; label: string
 };
 
 export function mentionsClient(record: MockRecord, client: MockRecord) {
+  const clientId = String(client.id || "").trim();
+  const recordClientId = String(record.clientId || "").trim();
+  if (clientId && recordClientId) return recordClientId === clientId;
   const name = String(client.name || "").trim().toLocaleLowerCase("fr");
   if (!name) return false;
+  if (clientId && !recordClientId) return false;
   const blob = [record.client, record.name, record.company].map((value) => String(value || "")).join(" ").toLocaleLowerCase("fr");
   return blob.includes(name);
 }
@@ -124,11 +128,27 @@ export function filterHistoryGroups(
     }));
 }
 
+export type ClientHistoryPayload = {
+  devis: MockRecord[];
+  commandes: MockRecord[];
+  factures: MockRecord[];
+  acomptes: MockRecord[];
+};
+
+export function historyGroupsFromPayload(payload: ClientHistoryPayload): HistoryGroup[] {
+  return [
+    { kind: "devis", label: "Devis", items: payload.devis ?? [] },
+    { kind: "commande", label: "Commandes", items: payload.commandes ?? [] },
+    { kind: "facture", label: "Factures", items: payload.factures ?? [] },
+    { kind: "acompte", label: "Acomptes", items: payload.acomptes ?? [] },
+  ];
+}
+
 export function historyForClient(all: Record<string, MockRecord[]>, client: MockRecord): HistoryGroup[] {
   return GROUPS.map((group) => ({
     kind: group.kind,
     label: group.label,
-    items: (all[group.source] ?? []).filter((item) => mentionsClient(item, client)),
+    items: group.sources.flatMap((source) => (all[source] ?? []).filter((item) => mentionsClient(item, client))),
   }));
 }
 

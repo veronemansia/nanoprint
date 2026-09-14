@@ -6,9 +6,11 @@ import { useApp } from "@/components/providers/app-provider";
 import { catalogueKindOf } from "@/lib/catalogue";
 import {
   STOCK_WRITEOFF_REASONS,
+  formatStockArchive,
   stockQuantity,
   stockStatusOf,
   stockUnit,
+  withdrawArchive,
   withdrawBlockReason,
   type StockKind,
 } from "@/lib/stock";
@@ -45,6 +47,12 @@ export function StockFollow() {
       );
     });
   }, [rows, query]);
+
+  const articleKind = kind === "finis" ? "product" : "material";
+  const movements = useMemo(() => {
+    return (records["stock-mouvements"] ?? []).filter((item) => String(item.articleKind || "") === articleKind);
+  }, [records, articleKind]);
+  const preview = target ? withdrawArchive(stockQuantity(target), Math.round(Number(qty) || 0)) : null;
 
   function openWithdraw(item: MockRecord) {
     setTarget(item);
@@ -157,6 +165,38 @@ export function StockFollow() {
         </div>
       )}
 
+      {movements.length > 0 && (
+        <div className="data-table-wrap" style={{ marginTop: 24 }}>
+          <table className="data-table supply-cart">
+            <thead>
+              <tr>
+                <th>{te("Article")}</th>
+                <th>{te("Motif")}</th>
+                <th>{te("Qté init")}</th>
+                <th>{te("Sortie")}</th>
+                <th>{te("Qté solde")}</th>
+                <th>{te("Date")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {movements.slice(0, 20).map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <strong>{item.name}</strong>
+                    <small className="supply-stock">{item.reference}</small>
+                  </td>
+                  <td>{te(String(item.reason || item.status || "—"))}</td>
+                  <td>{qtyFmt.format(Number(item.qtyInit) || 0)}</td>
+                  <td>{qtyFmt.format(Number(item.qtyOut) || 0)}</td>
+                  <td><b>{qtyFmt.format(Number(item.qtySolde) || 0)}</b></td>
+                  <td className="muted-cell">{item.updatedAt}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {target && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setTarget(null)}>
           <div className="modal" role="dialog" aria-modal="true" aria-labelledby="stock-out-title">
@@ -169,6 +209,9 @@ export function StockFollow() {
             </div>
             <form onSubmit={(event) => void submit(event)}>
               <p className="settings-hint">{te("Stock actuel")} : {qtyFmt.format(stockQuantity(target))} {stockUnit(target, kind)}</p>
+              {preview && (
+                <p className="settings-hint">{formatStockArchive(preview.qtyInit, preview.qtyOut, preview.qtySolde, stockUnit(target, kind), te("Sortie"))}</p>
+              )}
               {error && <p className="form-error" role="alert">{error}</p>}
               <div className="form-grid">
                 <label className="field">

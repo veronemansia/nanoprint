@@ -68,6 +68,18 @@ export function inventoryGap(systemQty: number, physicalQty: number) {
   return Math.round(Number(physicalQty) || 0) - Math.round(Number(systemQty) || 0);
 }
 
+export function formatStockArchive(qtyInit: number, qtyMove: number, qtySolde: number, unit = "", moveLabel = "Sortie") {
+  const fmt = new Intl.NumberFormat("fr-FR");
+  const suffix = unit ? ` ${unit}` : "";
+  return `Init ${fmt.format(Math.max(0, Math.round(qtyInit)))} · ${moveLabel} ${fmt.format(Math.round(qtyMove))} · Solde ${fmt.format(Math.max(0, Math.round(qtySolde)))}${suffix}`.trim();
+}
+
+export function withdrawArchive(stock: number, quantity: number) {
+  const qtyInit = Math.max(0, Math.round(stock));
+  const qtyOut = Math.max(0, Math.round(quantity));
+  return { qtyInit, qtyOut, qtySolde: Math.max(0, qtyInit - qtyOut) };
+}
+
 export function applyStockWithdraw(record: MockRecord, quantity: number, kind: StockKind): MockRecord {
   const nextQty = Math.max(0, stockQuantity(record) - Math.max(0, Math.round(quantity)));
   const buyPrice = Number(record.buyPrice) || Number(record.basePrice) || 0;

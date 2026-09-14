@@ -10,18 +10,46 @@ export type SupplyLine = {
   label: string;
   unit: string;
   quantity: number;
+  qtyInit: number;
+  qtyAppro: number;
+  qtySolde: number;
   unitPrice: number;
   sellPrice: number;
 };
 
-export function supplyLineTotal(line: Pick<SupplyLine, "quantity" | "unitPrice">) {
-  return Math.round(Math.max(0, Number(line.quantity) || 0) * Math.max(0, Number(line.unitPrice) || 0));
+const qtyFmt = new Intl.NumberFormat("fr-FR");
+
+export function supplyQtyAppro(line: Pick<SupplyLine, "quantity" | "qtyAppro"> | { quantity?: number; qtyAppro?: number }) {
+  return Math.max(0, Math.round(Number(line.quantity ?? line.qtyAppro) || 0));
+}
+
+export function withSupplyArchive(line: SupplyLine, initStock: number): SupplyLine {
+  const qtyInit = Math.max(0, Math.round(Number(initStock) || 0));
+  const qtyAppro = Math.max(0, Math.round(Number(line.quantity ?? line.qtyAppro) || 0));
+  return {
+    ...line,
+    quantity: qtyAppro,
+    qtyInit,
+    qtyAppro,
+    qtySolde: qtyInit + qtyAppro,
+  };
+}
+
+export function formatSupplyArchive(line: Pick<SupplyLine, "qtyInit" | "qtyAppro" | "qtySolde" | "quantity" | "unit">, unit = line.unit || "u") {
+  const qtyInit = Math.max(0, Math.round(Number(line.qtyInit) || 0));
+  const qtyAppro = supplyQtyAppro(line);
+  const qtySolde = Math.max(0, Math.round(Number(line.qtySolde ?? qtyInit + qtyAppro) || 0));
+  return `Init ${qtyFmt.format(qtyInit)} · Appro ${qtyFmt.format(qtyAppro)} · Solde ${qtyFmt.format(qtySolde)} ${unit}`.trim();
+}
+
+export function supplyLineTotal(line: Pick<SupplyLine, "quantity" | "qtyAppro" | "unitPrice">) {
+  return Math.round(Math.max(0, supplyQtyAppro(line)) * Math.max(0, Number(line.unitPrice) || 0));
 }
 
 export function toBillingLines(lines: SupplyLine[]): BillingLine[] {
   return lines.map((line) => ({
     designation: `${line.label}${line.unit ? ` (${line.unit})` : ""}`,
-    quantity: line.quantity,
+    quantity: supplyQtyAppro(line),
     unitPrice: line.unitPrice,
     total: supplyLineTotal(line),
   }));
@@ -43,11 +71,14 @@ export function parseSupplyLines(raw: string | number | undefined): SupplyLine[]
         materialId: String(row.materialId || ""),
         label: String(row.label || "").trim(),
         unit: String(row.unit || "").trim(),
-        quantity: Math.max(0, Math.round(Number(row.quantity) || 0)),
+        quantity: Math.max(0, Math.round(Number(row.qtyAppro ?? row.quantity) || 0)),
+        qtyInit: Math.max(0, Math.round(Number(row.qtyInit) || 0)),
+        qtyAppro: Math.max(0, Math.round(Number(row.qtyAppro ?? row.quantity) || 0)),
+        qtySolde: Math.max(0, Math.round(Number(row.qtySolde ?? (Number(row.qtyInit) || 0) + (Number(row.qtyAppro ?? row.quantity) || 0)) || 0)),
         unitPrice: Math.max(0, Math.round(Number(row.unitPrice) || 0)),
         sellPrice: Math.max(0, Math.round(Number(row.sellPrice) || 0)),
       };
-    }).filter((item) => item.materialId && item.label && item.quantity > 0);
+    }).filter((item) => item.materialId && item.label && item.qtyAppro > 0);
   } catch {
     return [];
   }
@@ -59,7 +90,10 @@ export function stringifySupplyLines(lines: SupplyLine[]) {
     materialId: line.materialId,
     label: line.label,
     unit: line.unit,
-    quantity: line.quantity,
+    quantity: supplyQtyAppro(line),
+    qtyInit: line.qtyInit,
+    qtyAppro: supplyQtyAppro(line),
+    qtySolde: line.qtySolde,
     unitPrice: line.unitPrice,
     sellPrice: line.sellPrice,
   })));
@@ -69,42 +103,39 @@ export function materialStock(material: MockRecord | undefined) {
   return Math.max(0, Math.round(Number(material?.quantity) || 0));
 }
 
-export function clampCartQuantity(quantity: number, stock: number) {
-  if (stock < 1) return 0;
-  return Math.min(stock, Math.max(1, Math.round(Number(quantity) || 0)));
-}
-
 export function addMaterialToCart(lines: SupplyLine[], material: MockRecord): SupplyLine[] {
-  const stock = materialStock(material);
-  if (stock < 1) return lines;
   const unitPrice = Math.max(0, Math.round(Number(material.buyPrice) || 0));
   const sellPrice = Math.max(0, Math.round(Number(material.sellPrice) || 0));
+  const qtyInit = materialStock(material);
   const existing = lines.find((line) => line.materialId === material.id);
   if (existing) {
+    const nextQty = supplyQtyAppro(existing) + 1;
     return lines.map((line) =>
       line.id === existing.id
-        ? { ...line, quantity: clampCartQuantity(line.quantity + 1, stock), unitPrice, sellPrice }
+        ? withSupplyArchive({ ...line, quantity: nextQty, qtyAppro: nextQty, unitPrice, sellPrice }, qtyInit)
         : line,
     );
   }
   return [
     ...lines,
-    {
+    withSupplyArchive({
       id: crypto.randomUUID(),
       materialId: String(material.id),
       label: String(material.name),
       unit: String(material.unit || ""),
       quantity: 1,
+      qtyInit,
+      qtyAppro: 1,
+      qtySolde: qtyInit + 1,
       unitPrice,
       sellPrice,
-    },
+    }, qtyInit),
   ];
 }
 
-export function setCartQuantity(lines: SupplyLine[], lineId: string, quantity: number, stock: number): SupplyLine[] {
-  const qty = clampCartQuantity(quantity, stock);
-  if (qty < 1) return lines.filter((line) => line.id !== lineId);
-  return lines.map((line) => (line.id === lineId ? { ...line, quantity: qty } : line));
+export function setCartQuantity(lines: SupplyLine[], lineId: string, quantity: number, initStock: number): SupplyLine[] {
+  const qty = Math.max(0, Math.round(Number(quantity) || 0));
+  return lines.map((line) => (line.id === lineId ? withSupplyArchive({ ...line, quantity: qty, qtyAppro: qty }, initStock) : line));
 }
 
 export function nextSupplyReference(records: MockRecord[], at = new Date()) {
@@ -122,7 +153,7 @@ export function applySupplyToMaterials(materials: MockRecord[], lines: SupplyLin
   return materials.map((item) => {
     const delta = lines
       .filter((line) => line.materialId === item.id)
-      .reduce((sum, line) => sum + line.quantity, 0) * direction;
+      .reduce((sum, line) => sum + supplyQtyAppro(line), 0) * direction;
     if (!delta) return item;
     const quantity = Math.max(0, (Number(item.quantity) || 0) + delta);
     const buyPrice = Number(item.buyPrice) || 0;
@@ -209,66 +240,11 @@ export function supplyBlockReason(supplierId: string, lines: SupplyLine[], suppl
   if (!supplierId) return "Choisissez un fournisseur.";
   if (!suppliers.some((item) => item.id === supplierId)) return "Ce fournisseur n’existe plus.";
   if (!lines.length) return "Ajoutez au moins une matière au panier.";
-  if (lines.some((line) => line.quantity < 1)) return "Chaque ligne doit avoir une quantité d’au moins 1.";
+  if (lines.some((line) => supplyQtyAppro(line) < 1)) return "Chaque ligne doit avoir une quantité d’au moins 1.";
   if (lines.some((line) => !materials.some((item) => item.id === line.materialId))) {
     return "Une matière du panier n’existe plus dans le catalogue.";
-  }
-  const overStock = lines.find((line) => {
-    const material = materials.find((item) => item.id === line.materialId);
-    return line.quantity > materialStock(material);
-  });
-  if (overStock) {
-    const material = materials.find((item) => item.id === overStock.materialId);
-    const stock = materialStock(material);
-    return `La quantité de « ${overStock.label} » ne peut pas dépasser le stock (${stock} ${overStock.unit || "u"}).`;
   }
   return "";
 }
 
-function packed(lines: SupplyLine[]) {
-  return stringifySupplyLines(lines);
-}
-
-const t0 = "03 sept. 2026";
-const t1 = "02 sept. 2026";
-const t2 = "01 sept. 2026";
-
-function supplyRecord(
-  id: string,
-  reference: string,
-  supplier: string,
-  supplierId: string,
-  status: string,
-  updatedAt: string,
-  issuedAt: string,
-  lines: SupplyLine[],
-  amount: number,
-): MockRecord {
-  return {
-    id,
-    reference,
-    name: supplier,
-    status,
-    updatedAt,
-    supplier,
-    supplierId,
-    quantity: lines.reduce((sum, line) => sum + line.quantity, 0),
-    amount,
-    issuedAt,
-    lines: packed(lines),
-  };
-}
-
-export const supplyRecords: MockRecord[] = [
-  supplyRecord("app-1", "APP-26090301", "Papeteries du Sahel", "fou-1", "Validé", t0, "2026-09-03", [
-    { id: "sl-1", materialId: "mat-1", label: "Couché brillant 135 g — 70×100", unit: "rame", quantity: 120, unitPrice: 15400, sellPrice: 18500 },
-    { id: "sl-2", materialId: "mat-3", label: "Offset 90 g — 65×92", unit: "rame", quantity: 40, unitPrice: 9000, sellPrice: 11200 },
-  ], 2605440),
-  supplyRecord("app-2", "APP-26090201", "InkPro Afrique", "fou-2", "Validé", t1, "2026-09-02", [
-    { id: "sl-3", materialId: "mat-7", label: "Encre Process Cyan 5 kg", unit: "fût 5 kg", quantity: 24, unitPrice: 28500, sellPrice: 34200 },
-    { id: "sl-4", materialId: "mat-6", label: "Encre Process Magenta 5 kg", unit: "fût 5 kg", quantity: 12, unitPrice: 28500, sellPrice: 34200 },
-  ], 1210680),
-  supplyRecord("app-3", "APP-26090101", "Print Supply Sénégal", "fou-3", "Validé", t2, "2026-09-01", [
-    { id: "sl-5", materialId: "mat-11", label: "Film pelliculage mat 76 cm", unit: "rouleau", quantity: 8, unitPrice: 52500, sellPrice: 68000 },
-  ], 495600),
-];
+export const supplyRecords: MockRecord[] = [];

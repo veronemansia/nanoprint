@@ -62,10 +62,13 @@ final class SeedDemo
         ], '127.0.0.1');
 
         $this->seedUsers($companyId);
+        (new SeedClients($this->pdo))->seedForCompany($companyId);
         $this->seedMaterials($auth, $materials);
         $this->seedWorkstations($auth, $workstations);
         $this->seedCatalogue($auth, $catalogue);
         $this->seedDocuments($auth, $documents);
+        (new SeedQuotes($this->pdo))->seedForCompany($companyId);
+        (new SeedBilling($this->pdo))->seedForCompany($companyId);
 
         echo "Seed NanoPrint terminé. Comptes : contact@nanoprint.sn / 123456 et awa.diop@nanoprint.demo / demo2026\n";
     }

@@ -138,16 +138,35 @@ final class CatalogueService
             'company_id' => $auth->companyId,
         ]);
         $this->replaceChildren($id, $merged, $priceGrid);
-        $this->audit->record($auth, 'catalogue.update', 'configuration', isset($values['priceGrid']) && count($values) <= 2 ? 'tarifs' : 'catalogue', 'product', $id, $name, $ip);
+        $isTarif = isset($values['priceGrid']) && count($values) <= 2;
+        $this->audit->record(
+            $auth,
+            $isTarif ? 'tarif.update' : 'catalogue.update',
+            'configuration',
+            $isTarif ? 'tarifs' : 'catalogue',
+            'product',
+            $id,
+            $name,
+            $ip,
+        );
         return $this->one($auth, $id);
     }
 
     public function delete(AuthContext $auth, string $id, string $ip): void
     {
-        $this->mustExist($auth, $id);
+        $row = $this->one($auth, $id);
+        foreach (['stock_movements', 'stock_alerts', 'inventory_lines'] as $table) {
+            $check = $this->pdo->prepare(
+                "SELECT 1 FROM {$table} WHERE company_id = :company_id AND article_kind = 'product' AND article_id = :id LIMIT 1",
+            );
+            $check->execute(['company_id' => $auth->companyId, 'id' => $id]);
+            if ($check->fetchColumn()) {
+                throw HttpException::conflict('Impossible de supprimer ce produit : des mouvements ou un inventaire y sont rattachés.');
+            }
+        }
         $this->pdo->prepare('DELETE FROM catalogue_products WHERE id = :id AND company_id = :company_id')
             ->execute(['id' => $id, 'company_id' => $auth->companyId]);
-        $this->audit->record($auth, 'catalogue.delete', 'configuration', 'catalogue', 'product', $id, '', $ip);
+        $this->audit->record($auth, 'catalogue.delete', 'configuration', 'catalogue', 'product', $id, (string) $row['name'], $ip);
     }
 
     private function one(AuthContext $auth, string $id): array

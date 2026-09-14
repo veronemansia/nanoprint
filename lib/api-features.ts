@@ -5,6 +5,16 @@ export const RECORD_PATH: Record<string, string> = {
   "modeles-documents": "/document-templates",
   "roles-permissions": "/users",
   sauvegardes: "/backups",
+  "fiches-clients": "/clients",
+  "contacts-multiples": "/client-contacts",
+  calculateur: "/quotes",
+  "devis-multi": "/quotes",
+  "statuts-commandes": "/orders",
+  "planning-machines": "/machine-slots",
+  fournisseurs: "/suppliers",
+  approvisionnement: "/supplies",
+  "seuils-alerte": "/stock-alerts",
+  inventaire: "/inventories",
 };
 
 export function isApiFeature(featureId: string) {

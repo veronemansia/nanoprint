@@ -73,10 +73,10 @@ final class TaxService
 
     public function delete(AuthContext $auth, string $id, string $ip): void
     {
-        $this->mustExist($auth, $id);
+        $row = $this->one($auth, $id);
         $this->pdo->prepare('DELETE FROM taxes WHERE id = :id AND company_id = :company_id')
             ->execute(['id' => $id, 'company_id' => $auth->companyId]);
-        $this->audit->record($auth, 'tax.delete', 'configuration', 'taxes', 'tax', $id, '', $ip);
+        $this->audit->record($auth, 'tax.delete', 'configuration', 'taxes', 'tax', $id, (string) $row['label'], $ip);
     }
 
     public function reset(AuthContext $auth, string $ip): array

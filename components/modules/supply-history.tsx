@@ -8,6 +8,7 @@ import { renderSupplyDeliveryHtml } from "@/lib/supply-document";
 import { printQuoteHtml, wrapDocumentPreview } from "@/lib/document-template";
 import {
   canDeleteSupply,
+  formatSupplyArchive,
   groupSuppliesBySupplier,
   parseSupplyLines,
   supplyLineTotal,
@@ -224,7 +225,7 @@ function SupplierDetail({
                   <li key={line.id}>
                     <div>
                       <strong>{line.label}</strong>
-                      <span>{qtyFmt.format(line.quantity)} {line.unit} × {money(line.unitPrice)}</span>
+                      <span>{formatSupplyArchive(line)} × {money(line.unitPrice)}</span>
                     </div>
                     <b>{money(supplyLineTotal(line))}</b>
                   </li>

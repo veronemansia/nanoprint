@@ -1,7 +1,7 @@
 import { amountInWords, formatBillingDate } from "@/lib/billing";
 import { formatAmount } from "@/lib/company-settings";
 import { NANOPRINT_LOGO } from "@/lib/document-template";
-import { parseSupplyLines, supplyTotals, toBillingLines, type SupplyLine } from "@/lib/supply";
+import { parseSupplyLines, supplyLineTotal, supplyTotals, type SupplyLine } from "@/lib/supply";
 import type { CompanySettings } from "@/lib/company-settings";
 import type { MockRecord } from "@/lib/types";
 
@@ -58,8 +58,8 @@ const CSS = `
 .np-inv-card p { margin: 4px 0 0; color: #5c5b55; font-size: 12px; line-height: 1.45; }
 .np-inv table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .np-inv thead th { text-align: left; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: #181a18; padding: 9px 10px; }
-.np-inv thead th:nth-child(2), .np-inv thead th:nth-child(3), .np-inv thead th:nth-child(4),
-.np-inv tbody td:nth-child(2), .np-inv tbody td:nth-child(3), .np-inv tbody td:nth-child(4) { text-align: right; }
+.np-inv thead th:nth-child(n+2),
+.np-inv tbody td:nth-child(n+2) { text-align: right; }
 .np-inv tbody td { padding: 10px; border-bottom: 1px solid #eeeae1; vertical-align: top; }
 .np-inv tbody tr:nth-child(even) td { background: #faf9f5; }
 .np-inv-foot { margin-top: auto; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; padding-top: 16px; }
@@ -98,7 +98,6 @@ export function renderSupplyDeliveryHtml(
 ) {
   const rows = lines ?? parseSupplyLines(supply.lines);
   const totals = supplyTotals(rows, settings);
-  const billing = toBillingLines(rows);
   const qty = new Intl.NumberFormat("fr-FR");
   const logo = safeLogo(settings.logo || NANOPRINT_LOGO);
   const party = supplier ?? {
@@ -111,16 +110,18 @@ export function renderSupplyDeliveryHtml(
     email: "",
     address: "",
   };
-  const lineHtml = billing.length
-    ? billing.map((line) => `
+  const lineHtml = rows.length
+    ? rows.map((line) => `
       <tr>
-        <td>${escapeHtml(line.designation)}</td>
-        <td>${escapeHtml(qty.format(line.quantity))}</td>
+        <td>${escapeHtml(line.label)}${line.unit ? ` <small>(${escapeHtml(line.unit)})</small>` : ""}</td>
+        <td>${escapeHtml(qty.format(line.qtyInit))}</td>
+        <td>${escapeHtml(qty.format(line.qtyAppro || line.quantity))}</td>
+        <td>${escapeHtml(qty.format(line.qtySolde || line.qtyInit + (line.qtyAppro || line.quantity)))}</td>
         <td>${escapeHtml(formatAmount(line.unitPrice, settings))}</td>
-        <td>${escapeHtml(formatAmount(line.total, settings))}</td>
+        <td>${escapeHtml(formatAmount(supplyLineTotal(line), settings))}</td>
       </tr>
     `).join("")
-    : `<tr><td colspan="4">Aucune ligne.</td></tr>`;
+    : `<tr><td colspan="6">Aucune ligne.</td></tr>`;
   const taxRows = totals.taxes.map((tax) => `
     <div><span>${escapeHtml(tax.label)} ${tax.rate} %</span><span>${escapeHtml(formatAmount(tax.amount, settings))}</span></div>
   `).join("");
@@ -159,7 +160,7 @@ export function renderSupplyDeliveryHtml(
       </section>
       <table>
         <thead>
-          <tr><th>Matière</th><th>Qté</th><th>Prix d’achat</th><th>Montant</th></tr>
+          <tr><th>Matière</th><th>Qté init</th><th>Qté appro</th><th>Qté solde</th><th>Prix d’achat</th><th>Montant</th></tr>
         </thead>
         <tbody>${lineHtml}</tbody>
       </table>

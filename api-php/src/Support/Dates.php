@@ -26,4 +26,17 @@ final class Dates
         $month = self::MONTHS[(int) date('n', $ts)] ?? date('M', $ts);
         return date('d', $ts) . ' ' . $month . ' ' . date('Y', $ts);
     }
+
+    public static function stamp(?string $datetime): string
+    {
+        if (!$datetime) {
+            return date('d') . ' ' . (self::MONTHS[(int) date('n')] ?? date('M')) . ' ' . date('Y') . ' · ' . date('H:i');
+        }
+        $ts = strtotime($datetime);
+        if ($ts === false) {
+            return self::display($datetime);
+        }
+        $month = self::MONTHS[(int) date('n', $ts)] ?? date('M', $ts);
+        return date('d', $ts) . ' ' . $month . ' ' . date('Y', $ts) . ' · ' . date('H:i', $ts);
+    }
 }

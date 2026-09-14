@@ -95,10 +95,10 @@ final class WorkstationService
 
     public function delete(AuthContext $auth, string $id, string $ip): void
     {
-        $this->mustExist($auth, $id);
+        $row = $this->one($auth, $id);
         $this->pdo->prepare('DELETE FROM workstations WHERE id = :id AND company_id = :company_id')
             ->execute(['id' => $id, 'company_id' => $auth->companyId]);
-        $this->audit->record($auth, 'workstation.delete', 'configuration', 'postes', 'workstation', $id, '', $ip);
+        $this->audit->record($auth, 'workstation.delete', 'configuration', 'postes', 'workstation', $id, (string) $row['name'], $ip);
     }
 
     private function one(AuthContext $auth, string $id): array

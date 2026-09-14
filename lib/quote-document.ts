@@ -166,7 +166,7 @@ export function renderQuoteHtml(input: {
           <p class="np-inv-bank">
             ${escapeHtml(settings.bank || "")}${settings.bank ? "<br/>" : ""}
             ${settings.iban ? `IBAN ${escapeHtml(settings.iban)}` : ""}
-            <br/>Document établi selon les taxes actives. Les montants sont en francs CFA.
+            <br/>Document établi selon les taxes actives.
           </p>
         </div>
         <div class="np-inv-tot">
